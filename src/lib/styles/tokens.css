@@ -1,0 +1,85 @@
+/* ============================================================
+ * Aurora Design Tokens —— 「深空 + 极光」
+ *
+ * 主题相关变量挂在 [data-theme] 上（由 settings store 同步到 <html>）；
+ * 主题无关的全局 token 在 :root。
+ * ============================================================ */
+
+:root {
+  /* ---- 品牌极光 ---- */
+  --accent-from: #5eead4; /* 青 */
+  --accent-to: #818cf8;   /* 靛紫 */
+  --aurora-gradient: linear-gradient(135deg, var(--accent-from), var(--accent-to));
+
+  /* ---- 尺寸 ---- */
+  --titlebar-height: 40px;
+  --statusbar-height: 24px;
+  --sidebar-width: 232px;
+
+  /* ---- 圆角 ---- */
+  --radius-sm: 4px;
+  --radius-md: 6px;
+
+  /* ---- 动效（唯一语言：ease-out 微过渡） ---- */
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --dur-fast: 150ms;
+  --dur-med: 200ms;
+
+  /* ---- 字体（中文优先的系统栈） ---- */
+  --font-ui:
+    -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC',
+    'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+  --font-mono:
+    'JetBrains Mono', 'SF Mono', 'Cascadia Code', Menlo, Consolas,
+    'PingFang SC', monospace;
+
+  /* ---- 层级 ---- */
+  --z-titlebar: 10;
+  --z-popover: 100;
+}
+
+/* ---------- Dark「深空」（主打卡） ---------- */
+:root[data-theme='dark'] {
+  color-scheme: dark;
+
+  /* 分层背景：带冷蓝调的近黑，不是死黑 */
+  --bg-app: #0f1218;      /* 窗口基底 */
+  --bg-chrome: #131822;   /* 标题栏 / 侧栏 / 状态栏 */
+  --bg-content: #10141c;  /* 编辑器 / 预览内容面 */
+  --bg-elevated: #1a2130; /* 弹层 / 输入框 / 悬浮 */
+
+  --text-primary: #e6eaf2;
+  --text-secondary: #9aa3b2;
+  --text-tertiary: #5c6675;
+
+  --border-subtle: rgb(255 255 255 / 6%);
+  --border-strong: rgb(255 255 255 / 13%);
+
+  /* 深空下青色提亮保证对比 */
+  --accent: #5eead4;
+  --selection-bg: rgb(129 140 248 / 28%);
+  --focus-ring: rgb(94 234 212 / 55%);
+}
+
+/* ---------- Light「晨雾」 ---------- */
+:root[data-theme='light'] {
+  color-scheme: light;
+
+  /* 暖白纸感 */
+  --bg-app: #f3f2ee;
+  --bg-chrome: #edebe6;
+  --bg-content: #faf9f6;
+  --bg-elevated: #ffffff;
+
+  --text-primary: #26282e;
+  --text-secondary: #6b6f78;
+  --text-tertiary: #a0a4ad;
+
+  --border-subtle: rgb(28 30 38 / 8%);
+  --border-strong: rgb(28 30 38 / 16%);
+
+  /* 浅色下压暗青绿保证对比 */
+  --accent: #0d9488;
+  --selection-bg: rgb(129 140 248 / 22%);
+  --focus-ring: rgb(13 148 136 / 45%);
+}
