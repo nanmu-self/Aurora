@@ -1,6 +1,6 @@
 <script lang="ts">
   import { settings } from '$lib/stores/settings.svelte';
-  import { doc } from '$lib/stores/doc.svelte';
+  import { tabs } from '$lib/stores/tabs.svelte';
 
   const isDark = $derived(settings.resolved === 'dark');
 </script>
@@ -14,8 +14,12 @@
 <header class="titlebar">
   <div class="traffic-spacer" aria-hidden="true"></div>
 
-  <div class="title" data-tauri-drag-region title={doc.path ?? '未命名'}>
-    {doc.title}{#if doc.dirty}<span class="dirty-mark">•</span>{/if}
+  <div
+    class="title"
+    data-tauri-drag-region
+    title={tabs.active?.path ?? tabs.active?.title ?? 'Aurora'}
+  >
+    {tabs.active?.title ?? 'Aurora'}{#if tabs.active?.dirty}<span class="dirty-mark">•</span>{/if}
   </div>
 
   <div class="actions">

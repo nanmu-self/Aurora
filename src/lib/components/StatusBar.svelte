@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { doc } from '$lib/stores/doc.svelte';
+  import { tabs } from '$lib/stores/tabs.svelte';
   import { status } from '$lib/stores/editorStatus.svelte';
 </script>
 
@@ -19,8 +19,8 @@
       <span class="item notice">{status.notice}</span>
     {:else}
       <span class="item">
-        <i class="dot" class:dirty={doc.dirty} aria-hidden="true"></i>
-        {doc.dirty ? '未保存' : '已保存'}
+        <i class="dot" class:dirty={(tabs.active?.dirty) ?? false} aria-hidden="true"></i>
+        {tabs.active?.dirty ? '未保存' : '已保存'}
       </span>
     {/if}
   </div>

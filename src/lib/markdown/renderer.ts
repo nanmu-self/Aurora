@@ -1,3 +1,4 @@
+import { convertFileSrc } from '@tauri-apps/api/core';
 import { unified } from 'unified';
 import remarkParse from 'remark-parse';
 import remarkGfm from 'remark-gfm';
@@ -7,6 +8,7 @@ import rehypeKatex from 'rehype-katex';
 import rehypeHighlight from 'rehype-highlight';
 import rehypeStringify from 'rehype-stringify';
 import type { Root } from 'mdast';
+import { join, normalizeSlashes } from '$lib/path';
 
 /**
  * 分栏实时预览的渲染器 —— §4.6-C「块级增量渲染」的实现。
@@ -29,6 +31,14 @@ interface RenderBlock {
   html: string;
 }
 
+/** 图片解析上下文：由调用方按活动标签页提供 */
+export interface RenderCtx {
+  /** 当前文件的所在目录；未保存的缓冲区退化为工作区根或 null */
+  baseDir: string | null;
+  /** 工作区根（`/` 开头的绝对引用以它为基准） */
+  workspaceRoot: string | null;
+}
+
 function hashString(s: string): number {
   let h = 0x811c9dc5;
   for (let i = 0; i < s.length; i++) {
@@ -48,6 +58,43 @@ function escapeHtml(s: string): string {
   })[c] as string);
 }
 
+/**
+ * 相对图片路径 → asset 协议 URL（§4.6-A / S2 Spike）。
+ * 规则：http(s)/data/asset/blob/锚点不动；`/x` 以工作区根为基准；其余相对当前文件目录。
+ * 注：rehype 插件在 unified 构建时注册，无法携带每次调用的参数，
+ * 因此用模块级可变变量传递当前渲染上下文（单预览实例场景下安全）。
+ */
+let currentCtx: RenderCtx = { baseDir: null, workspaceRoot: null };
+function resolveImageSrc(src: string, ctx: RenderCtx): string | null {
+  if (/^(https?:|data:|asset:|blob:|mailto:|#)/i.test(src)) return null;
+  const norm = normalizeSlashes(src);
+  let abs: string | null = null;
+  if (norm.startsWith('/')) {
+    if (ctx.workspaceRoot) abs = join(ctx.workspaceRoot, norm);
+  } else if (!norm.startsWith('~') && ctx.baseDir) {
+    abs = join(ctx.baseDir, norm);
+  }
+  return abs ? convertFileSrc(abs) : null;
+}
+
+/** rehype 插件：遍历 hast，重写 img.src */
+const rehypeAuroraImages = () => (tree: unknown): void => {
+  const visit = (node: unknown): void => {
+    const n = node as {
+      type?: string;
+      tagName?: string;
+      properties?: Record<string, unknown>;
+      children?: unknown[];
+    };
+    if (n.type === 'element' && n.tagName === 'img' && typeof n.properties?.src === 'string') {
+      const resolved = resolveImageSrc(n.properties.src, currentCtx);
+      if (resolved) n.properties.src = resolved;
+    }
+    n.children?.forEach(visit);
+  };
+  visit(tree);
+};
+
 // 不标注返回类型：unified 的 Processor 泛型随插件链变化，交给推断
 function createProcessor() {
   return unified()
@@ -56,6 +103,7 @@ function createProcessor() {
     .use(remarkMath)
     .use(remarkRehype)
     .use(rehypeKatex)
+    .use(rehypeAuroraImages)
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- 该包的 Options 类型在部分版本与 unified 链不兼容，运行时行为正确
     .use(rehypeHighlight, { ignoreMissing: true } as any)
     .use(rehypeStringify);
@@ -66,7 +114,8 @@ export class BlockRenderer {
   /** hash → 渲染结果缓存 */
   private cache = new Map<string, string>();
 
-  render(text: string, root: HTMLElement): void {
+  render(text: string, root: HTMLElement, ctx: RenderCtx): void {
+    currentCtx = ctx;
     if (!text.trim()) {
       this.cache.clear();
       root.replaceChildren();

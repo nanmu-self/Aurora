@@ -1,5 +1,8 @@
 <script lang="ts">
   import { ui } from '$lib/stores/ui.svelte';
+  import { workspace } from '$lib/stores/workspace.svelte';
+  import { basename } from '$lib/path';
+  import FileTree from './FileTree.svelte';
 
   const tabs = [
     { id: 'files', label: '文件' },
@@ -7,7 +10,7 @@
   ] as const;
 </script>
 
-<!-- 左侧栏：文件树（M2）/ 大纲（M3）；活动页签指示线使用极光渐变 -->
+<!-- 左侧栏：文件树（工作区）/ 大纲（M3）；活动页签指示线使用极光渐变 -->
 <aside class="sidebar">
   <nav class="tabs">
     {#each tabs as tab (tab.id)}
@@ -23,10 +26,63 @@
 
   <div class="panel">
     {#if ui.sidebarTab === 'files'}
-      <p class="empty-hint">
-        打开工作区后显示文件树
-        <span>M2 · 工作区</span>
-      </p>
+      {#if workspace.root}
+        <!-- 工作区头部：名称 + 快捷操作 -->
+        <div class="ws-head">
+          <span class="ws-name" title={workspace.root}>{workspace.name}</span>
+          <div class="ws-actions">
+            <button
+              class="ws-btn"
+              title="新建文件（根目录）"
+              onclick={() => workspace.startCreate(workspace.root!, 'file')}
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8Z" /><path d="M14 3v5h5" /></svg>
+            </button>
+            <button
+              class="ws-btn"
+              title="新建文件夹（根目录）"
+              onclick={() => workspace.startCreate(workspace.root!, 'dir')}
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 7a2 2 0 0 1 2-2h3.2l1.8 2h6a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2Z" /><path d="M12 12v4m-2-2h4" stroke-linecap="round" /></svg>
+            </button>
+            <button
+              class="ws-btn"
+              title="刷新"
+              onclick={() => void workspace.refreshAll()}
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.64-6.36" /><path d="M21 3v6h-6" /></svg>
+            </button>
+            <button
+              class="ws-btn"
+              title="收起全部"
+              onclick={() => workspace.collapseAll()}
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m18 15-6-6-6 6" /></svg>
+            </button>
+          </div>
+        </div>
+        <FileTree />
+      {:else}
+        <!-- 未打开工作区：引导 + 最近列表 -->
+        <div class="ws-empty">
+          <p class="hint">打开一个文件夹<br />作为你的笔记库</p>
+          <button class="open-btn" onclick={() => void workspace.pickAndOpen()}>
+            打开文件夹
+          </button>
+
+          {#if workspace.recents.length > 0}
+            <div class="recents">
+              <p class="recents-title">最近</p>
+              {#each workspace.recents as p (p)}
+                <button class="recent" title={p} onclick={() => void workspace.openRecent(p)}>
+                  <span class="r-name">{basename(p)}</span>
+                  <span class="r-path">{p}</span>
+                </button>
+              {/each}
+            </div>
+          {/if}
+        </div>
+      {/if}
     {:else}
       <p class="empty-hint">
         文档大纲将显示在这里
@@ -84,8 +140,138 @@
 
   .panel {
     flex: 1;
-    overflow: auto;
-    padding: 12px;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  /* ---------- 工作区头部 ---------- */
+  .ws-head {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 8px 10px 6px;
+  }
+
+  .ws-name {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 11.5px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+  }
+
+  .ws-actions {
+    display: flex;
+    gap: 2px;
+  }
+
+  .ws-btn {
+    display: grid;
+    place-items: center;
+    width: 22px;
+    height: 22px;
+    border-radius: var(--radius-sm);
+    color: var(--text-tertiary);
+    opacity: 0.85;
+    transition:
+      background var(--dur-fast) var(--ease-out),
+      color var(--dur-fast) var(--ease-out);
+  }
+
+  .ws-btn:hover {
+    background: var(--bg-elevated);
+    color: var(--text-primary);
+  }
+
+  .ws-btn svg {
+    width: 13px;
+    height: 13px;
+  }
+
+  /* ---------- 空状态 / 最近 ---------- */
+  .ws-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 40px 20px 20px;
+    text-align: center;
+  }
+
+  .hint {
+    font-size: 12px;
+    line-height: 1.8;
+    color: var(--text-tertiary);
+    margin-bottom: 16px;
+  }
+
+  .open-btn {
+    padding: 6px 18px;
+    border-radius: var(--radius-md);
+    font-size: 12px;
+    font-weight: 600;
+    color: #10141c;
+    background: var(--aurora-gradient);
+    transition: filter var(--dur-fast) var(--ease-out);
+  }
+
+  .open-btn:hover {
+    filter: brightness(1.06);
+  }
+
+  .recents {
+    width: 100%;
+    margin-top: 28px;
+  }
+
+  .recents-title {
+    margin-bottom: 6px;
+    font-size: 10.5px;
+    letter-spacing: 0.08em;
+    color: var(--text-tertiary);
+    text-transform: uppercase;
+    text-align: left;
+  }
+
+  .recent {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1px;
+    width: 100%;
+    padding: 5px 8px;
+    margin-bottom: 2px;
+    border-radius: var(--radius-sm);
+    text-align: left;
+    transition: background var(--dur-fast) var(--ease-out);
+  }
+
+  .recent:hover {
+    background: var(--bg-elevated);
+  }
+
+  .r-name {
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 12px;
+    color: var(--text-secondary);
+  }
+
+  .r-path {
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    direction: rtl; /* 长路径优先展示尾部 */
+    font-size: 10px;
+    color: var(--text-tertiary);
   }
 
   .empty-hint {
