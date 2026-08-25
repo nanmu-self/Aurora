@@ -1,19 +1,28 @@
+<script lang="ts">
+  import { doc } from '$lib/stores/doc.svelte';
+  import { status } from '$lib/stores/editorStatus.svelte';
+</script>
+
 <!--
-  底部状态栏：字数统计 / 行列号 / 保存状态。
-  真实数据自 M1 起由编辑器的派生状态单向订阅而来（§4.3 原则 2）。
+  底部状态栏：字数 / 行列号来自编辑器派生状态（单向同步），
+  右侧为保存状态指示，瞬时通知出现时临时接管。
 -->
 <footer class="statusbar">
   <div class="group">
-    <span class="item">0 字</span>
+    <span class="item">{status.chars} 字</span>
     <span class="sep">·</span>
-    <span class="item">Ln 1, Col 1</span>
+    <span class="item">Ln {status.ln}, Col {status.col}</span>
   </div>
 
   <div class="group">
-    <span class="item">
-      <i class="dot" aria-hidden="true"></i>
-      已保存
-    </span>
+    {#if status.notice}
+      <span class="item notice">{status.notice}</span>
+    {:else}
+      <span class="item">
+        <i class="dot" class:dirty={doc.dirty} aria-hidden="true"></i>
+        {doc.dirty ? '未保存' : '已保存'}
+      </span>
+    {/if}
   </div>
 </footer>
 
@@ -47,11 +56,20 @@
     gap: 5px;
   }
 
-  /* 保存状态点：极光青（M1 起随 dirty 状态变色） */
+  /* 保存状态点：干净=极光青，脏=琥珀 */
   .dot {
     width: 6px;
     height: 6px;
     border-radius: 50%;
     background: var(--accent);
+    transition: background var(--dur-fast) var(--ease-out);
+  }
+
+  .dot.dirty {
+    background: var(--warn);
+  }
+
+  .notice {
+    color: var(--warn);
   }
 </style>

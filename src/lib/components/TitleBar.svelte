@@ -1,5 +1,6 @@
 <script lang="ts">
   import { settings } from '$lib/stores/settings.svelte';
+  import { doc } from '$lib/stores/doc.svelte';
 
   const isDark = $derived(settings.resolved === 'dark');
 </script>
@@ -13,7 +14,9 @@
 <header class="titlebar">
   <div class="traffic-spacer" aria-hidden="true"></div>
 
-  <div class="title" data-tauri-drag-region>Aurora</div>
+  <div class="title" data-tauri-drag-region title={doc.path ?? '未命名'}>
+    {doc.title}{#if doc.dirty}<span class="dirty-mark">•</span>{/if}
+  </div>
 
   <div class="actions">
     <button
@@ -69,6 +72,11 @@
     letter-spacing: 0.02em;
     color: var(--text-secondary);
     pointer-events: auto;
+  }
+
+  .dirty-mark {
+    margin-left: 5px;
+    color: var(--warn);
   }
 
   .actions {

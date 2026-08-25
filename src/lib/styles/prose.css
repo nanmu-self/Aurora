@@ -1,0 +1,243 @@
+/*
+ * 预览区排印样式（中文优先）+ 代码高亮 token 配色。
+ * 由 MarkdownPreview.svelte 引入；作用域类名 .md-preview 由组件提供。
+ *
+ * 结构说明：渲染器按块注入 <div class="md-block" data-start-line=...>，
+ * 块间距由 .md-block 控制，内部元素自身 margin 清零，保证节奏可控。
+ */
+
+/* ---------- 块节奏 ---------- */
+.md-preview .md-block {
+  margin: 0 0 16px;
+}
+
+.md-preview .md-block > * {
+  margin: 0;
+}
+
+/* ---------- 标题 ---------- */
+.md-preview h1,
+.md-preview h2,
+.md-preview h3,
+.md-preview h4,
+.md-preview h5,
+.md-preview h6 {
+  font-weight: 650;
+  line-height: 1.4;
+  letter-spacing: 0.01em;
+}
+
+.md-preview h1 {
+  font-size: 1.7em;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.md-preview h2 {
+  font-size: 1.4em;
+  padding-bottom: 5px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.md-preview h3 {
+  font-size: 1.2em;
+}
+
+.md-preview h4,
+.md-preview h5,
+.md-preview h6 {
+  font-size: 1.05em;
+}
+
+/* ---------- 正文 ---------- */
+.md-preview p,
+.md-preview li {
+  line-height: 1.85;
+  letter-spacing: 0.012em;
+}
+
+/* 中西文自动间距：新版 WKWebView 支持 text-autospace，旧环境静默忽略 */
+.md-preview p,
+.md-preview li,
+.md-preview h1,
+.md-preview h2,
+.md-preview h3,
+.md-preview h4,
+.md-preview h5,
+.md-preview h6,
+.md-preview blockquote {
+  text-autospace: normal;
+}
+
+/* ---------- 行内元素 ---------- */
+.md-preview a {
+  color: var(--accent);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  text-decoration-color: color-mix(in srgb, var(--accent) 45%, transparent);
+}
+
+.md-preview strong {
+  font-weight: 700;
+}
+
+.md-preview code {
+  font-family: var(--font-mono);
+  font-size: 0.86em;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-subtle);
+  border-radius: 4px;
+  padding: 1px 5px;
+}
+
+.md-preview kbd {
+  font-family: var(--font-mono);
+  font-size: 0.8em;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-strong);
+  border-bottom-width: 2px;
+  border-radius: 4px;
+  padding: 1px 5px;
+}
+
+/* ---------- 引用 / 分割线 ---------- */
+.md-preview blockquote {
+  border-left: 2px solid var(--accent-from);
+  padding: 4px 0 4px 16px;
+  color: var(--text-secondary);
+}
+
+.md-preview hr {
+  border: none;
+  border-top: 1px solid var(--border-subtle);
+  margin: 24px 0;
+}
+
+/* ---------- 列表 / 任务 ---------- */
+.md-preview ul,
+.md-preview ol {
+  padding-left: 1.5em;
+}
+
+.md-preview li {
+  margin: 3px 0;
+}
+
+.md-preview li > p {
+  margin: 0 0 4px;
+}
+
+.md-preview li.task-list-item {
+  list-style: none;
+  margin-left: -1.4em;
+}
+
+.md-preview li.task-list-item input[type='checkbox'] {
+  accent-color: var(--accent);
+  margin-right: 7px;
+  vertical-align: -2px;
+}
+
+/* ---------- 表格 ---------- */
+.md-preview table {
+  border-collapse: collapse;
+  font-size: 0.95em;
+}
+
+.md-preview th,
+.md-preview td {
+  border: 1px solid var(--border-subtle);
+  padding: 6px 12px;
+  line-height: 1.6;
+}
+
+.md-preview th {
+  background: var(--bg-chrome);
+  font-weight: 600;
+  text-align: left;
+}
+
+/* ---------- 图片 ---------- */
+.md-preview img {
+  max-width: 100%;
+  border-radius: var(--radius-md);
+}
+
+/* ---------- 代码块 ---------- */
+.md-preview pre {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 13px 15px;
+  overflow-x: auto;
+  line-height: 1.7;
+}
+
+.md-preview pre code {
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: 12.5px;
+}
+
+/* highlight.js token 配色（色值走主题变量，明暗自适应） */
+.md-preview .hljs-keyword,
+.md-preview .hljs-selector-tag,
+.md-preview .hljs-literal,
+.md-preview .hljs-doctag {
+  color: var(--code-keyword);
+}
+
+.md-preview .hljs-string,
+.md-preview .hljs-regexp,
+.md-preview .hljs-addition,
+.md-preview .hljs-meta .hljs-string {
+  color: var(--code-string);
+}
+
+.md-preview .hljs-number,
+.md-preview .hljs-symbol,
+.md-preview .hljs-bullet,
+.md-preview .hljs-attr,
+.md-preview .hljs-variable,
+.md-preview .hljs-template-variable {
+  color: var(--code-number);
+}
+
+.md-preview .hljs-title,
+.md-preview .hljs-title.class_,
+.md-preview .hljs-title.function_,
+.md-preview .hljs-section,
+.md-preview .hljs-name {
+  color: var(--code-function);
+}
+
+.md-preview .hljs-comment,
+.md-preview .hljs-quote {
+  color: var(--code-comment);
+  font-style: italic;
+}
+
+.md-preview .hljs-type,
+.md-preview .hljs-built_in,
+.md-preview .hljs-builtin-name,
+.md-preview .hljs-selector-id,
+.md-preview .hljs-selector-class,
+.md-preview .hljs-tag {
+  color: var(--code-function);
+}
+
+.md-preview .hljs-emphasis {
+  font-style: italic;
+}
+
+.md-preview .hljs-strong {
+  font-weight: 700;
+}
+
+/* ---------- 数学公式 ---------- */
+.md-preview .katex-display {
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 4px 0;
+}

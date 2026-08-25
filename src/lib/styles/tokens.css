@@ -57,8 +57,16 @@
 
   /* 深空下青色提亮保证对比 */
   --accent: #5eead4;
+  --warn: #d29922;
   --selection-bg: rgb(129 140 248 / 28%);
   --focus-ring: rgb(94 234 212 / 55%);
+
+  /* 内嵌代码块 token 配色（编辑器 HighlightStyle 与预览 hljs 共用） */
+  --code-keyword: #82aaff;
+  --code-string: #5eead4;
+  --code-function: #818cf8;
+  --code-number: #f78c6c;
+  --code-comment: #5c6675;
 }
 
 /* ---------- Light「晨雾」 ---------- */
@@ -80,6 +88,14 @@
 
   /* 浅色下压暗青绿保证对比 */
   --accent: #0d9488;
+  --warn: #b45309;
   --selection-bg: rgb(129 140 248 / 22%);
   --focus-ring: rgb(13 148 136 / 45%);
+
+  /* 内嵌代码块 token 配色 */
+  --code-keyword: #3b5bdb;
+  --code-string: #0f766e;
+  --code-function: #4f46e5;
+  --code-number: #b45309;
+  --code-comment: #a0a4ad;
 }
