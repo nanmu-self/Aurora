@@ -114,7 +114,7 @@
             <button class="hit" onclick={() => void openHit(hit)}>
               <span class="h-file">{basename(hit.path)}</span>
               <span class="h-dir">{dirname(hit.path)}</span>
-              <span class="h-line">L{hit.line}</span>
+              <span class="h-line">第 {hit.line} 行</span>
               <span class="h-text">{hit.text}</span>
             </button>
           {/each}

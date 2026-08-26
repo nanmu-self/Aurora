@@ -186,6 +186,30 @@ const mdEditKeymap: KeyBinding[] = [
 ];
 
 /**
+ * CM6 内置界面文案中文化（查找替换面板等）。
+ * 键名必须与扩展内部使用的 phrase key 完全一致。
+ */
+const zhPhrases: Record<string, string> = {
+  Find: '查找',
+  Replace: '替换',
+  next: '下一个',
+  previous: '上一个',
+  all: '全部',
+  'match case': '区分大小写',
+  'by word': '全字匹配',
+  regexp: '正则表达式',
+  replace: '替换',
+  'replace all': '全部替换',
+  close: '关闭',
+  'current match': '当前匹配',
+  'replaced $ matches': '已替换 $ 处',
+  'replaced match on line $': '已在第 $ 行替换',
+  'on line': '所在行：$',
+  'Go to line': '跳转到行',
+  line: '行号',
+};
+
+/**
  * history 放进 Compartment：打开新文件 / 新建时重配为空，丢弃旧文档的撤销栈，
  * 避免「打开 B 后 Cmd+Z 穿越回 A 的内容」。
  */
@@ -206,7 +230,8 @@ export function createExtensions(): Extension[] {
     }),
     syntaxHighlighting(auroraHighlight),
     auroraTheme,
-    /* 查找替换（Mod-F / Mod-Alt-F）+ 选区匹配高亮 */
+    /* 查找替换（Mod-F / Mod-Alt-F）+ 选区匹配高亮 + 中文界面文案 */
+    EditorState.phrases.of(zhPhrases),
     search({ top: true }),
     highlightSelectionMatches(),
     EditorView.lineWrapping,

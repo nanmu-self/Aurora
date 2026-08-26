@@ -13,7 +13,7 @@
     <span class="sep">·</span>
     <span class="item">{status.words} 词</span>
     <span class="sep">·</span>
-    <span class="item">Ln {status.ln}, Col {status.col}</span>
+    <span class="item">第 {status.ln} 行，第 {status.col} 列</span>
   </div>
 
   <div class="group">
