@@ -1,4 +1,4 @@
-import { EditorState } from '@codemirror/state';
+import { EditorState, type Extension } from '@codemirror/state';
 import { EditorView, type ViewUpdate } from '@codemirror/view';
 import { createExtensions } from './setup';
 
@@ -24,12 +24,16 @@ const listeners = new Set<Listener>();
 
 /* ---------------- 生命周期 ---------------- */
 
-/** 必须在创建视图前调用；onUpdate 为编辑器统一更新回调 */
-export function initEditor(onUpdate: (u: ViewUpdate) => void): void {
+/** 必须在创建视图前调用；onUpdate 为编辑器统一更新回调；extra 为组件级扩展（如图片粘贴处理） */
+export function initEditor(onUpdate: (u: ViewUpdate) => void, extra: Extension[] = []): void {
   makeState = (text = '') =>
     EditorState.create({
       doc: text,
-      extensions: [...createExtensions(), EditorView.updateListener.of(onUpdate)],
+      extensions: [
+        ...createExtensions(),
+        ...extra,
+        EditorView.updateListener.of(onUpdate),
+      ],
     });
 }
 
@@ -76,6 +80,10 @@ export function dropTabState(id: string): void {
 
 /* ---------------- 只读访问与广播 ---------------- */
 
+export function getView(): EditorView | null {
+  return view;
+}
+
 export function getActiveText(): string {
   return view ? view.state.doc.toString() : '';
 }
@@ -87,6 +95,32 @@ export function activeMetrics(): { chars: number; ln: number; col: number } {
   const head = state.selection.main.head;
   const line = state.doc.lineAt(head);
   return { chars: state.doc.length, ln: line.number, col: head - line.from + 1 };
+}
+
+/** 外部变更后整体替换某标签的状态（保留其他标签不动） */
+export function reloadTabState(id: string, text: string): void {
+  if (!makeState) return;
+  const st = makeState(text);
+  states.set(id, st);
+  if (currentId === id && view) view.setState(st);
+}
+
+/** 在光标处插入文本（图片引用等），并聚焦编辑器 */
+export function insertAtCursor(text: string): void {
+  if (!view) return;
+  view.dispatch(view.state.replaceSelection(text));
+  view.focus();
+}
+
+/** 跳转到指定行（大纲点击）：移动光标 + 居中滚动，滚动事件会带动预览同步 */
+export function jumpToLine(line: number): void {
+  if (!view) return;
+  const ln = view.state.doc.line(Math.max(1, Math.min(line, view.state.doc.lines)));
+  view.dispatch({
+    selection: { anchor: ln.from },
+    effects: EditorView.scrollIntoView(ln.from, { y: 'center' }),
+  });
+  view.focus();
 }
 
 /** 编辑器文档变更后广播（调用方负责防抖） */

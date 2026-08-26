@@ -1,5 +1,6 @@
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 mod fs;
+mod watch;
 mod workspace;
 
 #[tauri::command]
@@ -16,12 +17,16 @@ pub fn run() {
             greet,
             fs::read_text_file,
             fs::write_text_file,
+            fs::ensure_dir,
+            fs::write_binary_file,
             workspace::list_dir,
             workspace::create_entry,
             workspace::rename_entry,
             workspace::delete_entry,
             workspace::path_exists,
-            workspace::allow_workspace_assets
+            workspace::allow_workspace_assets,
+            watch::watch_workspace,
+            watch::unwatch_all
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

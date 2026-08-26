@@ -1,5 +1,5 @@
 import { HighlightStyle, syntaxHighlighting, indentUnit } from '@codemirror/language';
-import { Compartment, EditorState, type Extension } from '@codemirror/state';
+import { Compartment, EditorSelection, EditorState, type Extension } from '@codemirror/state';
 import {
   EditorView,
   drawSelection,
@@ -7,8 +7,11 @@ import {
   rectangularSelection,
   keymap,
   placeholder,
+  type Command,
+  type KeyBinding,
 } from '@codemirror/view';
 import { defaultKeymap, history, historyKeymap, indentWithTab } from '@codemirror/commands';
+import { searchKeymap, highlightSelectionMatches, search } from '@codemirror/search';
 import { tags as t } from '@lezer/highlight';
 import { markdown, markdownLanguage, markdownKeymap } from '@codemirror/lang-markdown';
 import { languages } from '@codemirror/language-data';
@@ -55,6 +58,52 @@ const auroraTheme = EditorView.theme({
   '.cm-placeholder': {
     color: 'var(--text-tertiary)',
   },
+  /* 查找替换面板（@codemirror/search）适配 Aurora 双主题 */
+  '.cm-panels': {
+    backgroundColor: 'var(--bg-elevated)',
+    color: 'var(--text-primary)',
+    zIndex: '5',
+  },
+  '.cm-panels-top': {
+    borderBottom: '1px solid var(--border-subtle)',
+  },
+  '.cm-panel.cm-search': {
+    padding: '8px 12px',
+    fontFamily: 'var(--font-ui)',
+    fontSize: '12px',
+  },
+  '.cm-panel.cm-search input, .cm-textfield': {
+    backgroundColor: 'var(--bg-app)',
+    color: 'var(--text-primary)',
+    border: '1px solid var(--border-subtle)',
+    borderRadius: '4px',
+    padding: '3px 6px',
+    marginRight: '4px',
+  },
+  '.cm-panel.cm-search label': {
+    color: 'var(--text-secondary)',
+    fontSize: '11px',
+    margin: '0 4px',
+  },
+  '.cm-panel.cm-search button': {
+    backgroundColor: 'var(--bg-chrome)',
+    color: 'var(--text-primary)',
+    border: '1px solid var(--border-strong)',
+    borderRadius: '4px',
+    padding: '2px 8px',
+    marginRight: '4px',
+    fontFamily: 'var(--font-ui)',
+  },
+  '.cm-panel.cm-search button:hover': {
+    backgroundColor: 'var(--bg-app)',
+  },
+  '.cm-searchMatch': {
+    backgroundColor: 'rgb(250 204 21 / 22%)',
+    outline: '1px solid transparent',
+  },
+  '.cm-searchMatch-selected': {
+    backgroundColor: 'rgb(94 234 212 / 32%)',
+  },
 });
 
 const auroraHighlight = HighlightStyle.define([
@@ -90,6 +139,51 @@ const auroraHighlight = HighlightStyle.define([
 ]);
 
 /**
+ * Markdown 编辑快捷键（M3 快捷键体系）：选区包裹语法标记。
+ * 空选区时插入一对空标记并定位中间，继续输入即可。
+ */
+function wrapSelection(before: string, after = before): Command {
+  return (view) => {
+    const tr = view.state.changeByRange((range) => {
+      const text = view.state.sliceDoc(range.from, range.to);
+      return {
+        changes: { from: range.from, to: range.to, insert: before + text + after },
+        range: EditorSelection.range(
+          range.from + before.length,
+          range.from + before.length + text.length,
+        ),
+      };
+    });
+    view.dispatch(tr);
+    return true;
+  };
+}
+
+/** 插入链接：选中文字变链接文本，url 占位符被选中可直接输入地址 */
+function insertLink(view: EditorView): boolean {
+  const tr = view.state.changeByRange((range) => {
+    const text = view.state.sliceDoc(range.from, range.to) || '链接文字';
+    const insert = `[${text}](url)`;
+    return {
+      changes: { from: range.from, to: range.to, insert },
+      range: EditorSelection.range(
+        range.from + text.length + 3,
+        range.from + insert.length - 1,
+      ),
+    };
+  });
+  view.dispatch(tr);
+  return true;
+}
+
+const mdEditKeymap: KeyBinding[] = [
+  { key: 'Mod-b', run: wrapSelection('**') },
+  { key: 'Mod-i', run: wrapSelection('*') },
+  { key: 'Mod-e', run: wrapSelection('`') },
+  { key: 'Mod-k', run: insertLink },
+];
+
+/**
  * history 放进 Compartment：打开新文件 / 新建时重配为空，丢弃旧文档的撤销栈，
  * 避免「打开 B 后 Cmd+Z 穿越回 A 的内容」。
  */
@@ -110,8 +204,18 @@ export function createExtensions(): Extension[] {
     }),
     syntaxHighlighting(auroraHighlight),
     auroraTheme,
+    /* 查找替换（Mod-F / Mod-Alt-F）+ 选区匹配高亮 */
+    search({ top: true }),
+    highlightSelectionMatches(),
     EditorView.lineWrapping,
     placeholder('开始写作…'),
-    keymap.of([indentWithTab, ...defaultKeymap, ...historyKeymap, ...markdownKeymap]),
+    keymap.of([
+      ...mdEditKeymap,
+      indentWithTab,
+      ...defaultKeymap,
+      ...historyKeymap,
+      ...searchKeymap,
+      ...markdownKeymap,
+    ]),
   ];
 }

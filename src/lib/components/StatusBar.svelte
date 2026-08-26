@@ -11,6 +11,8 @@
   <div class="group">
     <span class="item">{status.chars} 字</span>
     <span class="sep">·</span>
+    <span class="item">{status.words} 词</span>
+    <span class="sep">·</span>
     <span class="item">Ln {status.ln}, Col {status.col}</span>
   </div>
 
@@ -18,6 +20,8 @@
     {#if status.notice}
       <span class="item notice">{status.notice}</span>
     {:else}
+      <span class="item muted">约 {status.minutes} 分钟</span>
+      <span class="sep">·</span>
       <span class="item">
         <i class="dot" class:dirty={(tabs.active?.dirty) ?? false} aria-hidden="true"></i>
         {tabs.active?.dirty ? '未保存' : '已保存'}
@@ -71,5 +75,9 @@
 
   .notice {
     color: var(--warn);
+  }
+
+  .muted {
+    opacity: 0.85;
   }
 </style>

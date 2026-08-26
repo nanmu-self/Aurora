@@ -6,6 +6,8 @@ import {
   pathExists,
   pickWorkspaceDir,
   renameEntry,
+  unwatchAll,
+  watchWorkspace,
   type DirEntry,
   type EntryKind,
 } from '$lib/commands/fs';
@@ -66,13 +68,19 @@ class WorkspaceStore {
     }
   }
 
-  /** 打开工作区：授权 asset 协议 → 重置树 → 加载根级 */
+  /** 打开工作区：授权 asset 协议 → 开启监听 → 重置树 → 加载根级 */
   async open(rootPath: string): Promise<void> {
     try {
       await allowWorkspaceAssets(rootPath);
     } catch (e) {
       // 授权失败不阻断工作区使用，仅影响图片渲染
       status.show(`asset 授权失败：${String(e)}`);
+    }
+    try {
+      await watchWorkspace(rootPath);
+    } catch (e) {
+      // 监听失败不阻断使用，仅失去外部变更感知
+      status.show(`文件监听未开启：${String(e)}`);
     }
     this.root = rootPath;
     this.children = {};
@@ -111,6 +119,7 @@ class WorkspaceStore {
     this.children = {};
     this.expanded = {};
     this.loadingDirs = {};
+    void unwatchAll().catch(() => {});
   }
 
   async refreshDir(dir: string): Promise<void> {

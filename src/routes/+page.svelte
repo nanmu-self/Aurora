@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
+  import { listen } from '@tauri-apps/api/event';
   import { getCurrentWindow } from '@tauri-apps/api/window';
   import TitleBar from '$lib/components/TitleBar.svelte';
   import TabBar from '$lib/components/TabBar.svelte';
@@ -10,11 +11,14 @@
   import ConfirmDialog from '$lib/components/ConfirmDialog.svelte';
   import { greet } from '$lib/commands';
   import { pickOpenPath } from '$lib/commands/fs';
+  import { initAutosave, cancelAutosave } from '$lib/editor/autosave';
+  import { outline } from '$lib/stores/outline.svelte';
   import { tabs } from '$lib/stores/tabs.svelte';
   import { workspace } from '$lib/stores/workspace.svelte';
   import { status } from '$lib/stores/editorStatus.svelte';
+  import { dirname } from '$lib/path';
 
-  /* ---------------- IPC 冒烟（M0） ---------------- */
+  /* ---------------- IPC 冒烟（M0） + M3 派生服务 ---------------- */
 
   onMount(() => {
     void (async () => {
@@ -24,7 +28,33 @@
         console.warn('[aurora] ipc failed:', e);
       }
     })();
+
+    outline.init(); // 大纲 + 字数统计随文档防抖刷新
+    initAutosave();
+
+    let unFs: (() => void) | undefined;
+    listen<{ path: string }>('fs-changed', (ev) => void handleFsChange(ev.payload.path)).then(
+      (u) => {
+        unFs = u;
+      },
+    );
+    return () => unFs?.();
   });
+
+  /** 外部变更：树联动刷新；已打开且未脏的标签自动重载，脏标签仅提示（S3 第三层在前端） */
+  async function handleFsChange(path: string): Promise<void> {
+    if (workspace.root && path.startsWith(workspace.root)) {
+      void workspace.refreshDir(dirname(path));
+    }
+    const t = tabs.tabs.find((x) => x.path === path);
+    if (!t) return;
+    if (t.dirty) {
+      cancelAutosave(); // 数据安全：不自动用旧内容覆盖外部修改
+      status.show(`「${t.title}」已被外部修改，请注意保存冲突`);
+      return;
+    }
+    await tabs.reloadTab(t.id);
+  }
 
   /* ---------------- 应用级动作（含未保存保护） ---------------- */
 

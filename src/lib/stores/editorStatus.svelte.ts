@@ -3,6 +3,10 @@ class StatusStore {
   chars = $state(0);
   ln = $state(1);
   col = $state(1);
+  /** 词数（CJK 按字 + 拉丁按词），随文档防抖刷新 */
+  words = $state(0);
+  /** 预计阅读时长（分钟） */
+  minutes = $state(1);
 
   /** 瞬时通知（保存成功 / 失败等），3 秒后自动消失 */
   notice = $state<string | null>(null);

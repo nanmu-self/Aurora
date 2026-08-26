@@ -5,6 +5,7 @@ import {
   focusTab,
   getActiveText,
   notifyDocChanged,
+  reloadTabState,
 } from '$lib/editor/bridge';
 import { pickSavePath, readTextFile, writeTextFile } from '$lib/commands/fs';
 import { basename } from '$lib/path';
@@ -106,6 +107,28 @@ class TabsStore {
         t.path = newPath;
         t.title = basename(newPath);
       }
+    }
+  }
+
+  /** 外部变更后重载标签内容（S3 第三层防御：内容一致则静默跳过） */
+  async reloadTab(id: string): Promise<void> {
+    const t = this.tabs.find((x) => x.id === id);
+    if (!t?.path) return;
+    try {
+      const text = await readTextFile(t.path);
+      if (!t.dirty && text === t.savedText) return;
+      reloadTabState(id, text);
+      t.savedText = text;
+      t.dirty = false;
+      if (this.activeId === id) {
+        const m = activeMetrics();
+        status.chars = m.chars;
+        status.ln = m.ln;
+        status.col = m.col;
+        notifyDocChanged();
+      }
+    } catch {
+      /* 文件可能已被外部删除/移动：保持现状，等用户操作 */
     }
   }
 

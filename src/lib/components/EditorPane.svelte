@@ -1,8 +1,8 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import type { ViewUpdate } from '@codemirror/view';
-  import { initEditor, mountView, unmountView } from '$lib/editor/bridge';
-  import { notifyDocChanged } from '$lib/editor/bridge';
+  import { initEditor, mountView, unmountView, notifyDocChanged } from '$lib/editor/bridge';
+  import { imageDropPasteExtension } from '$lib/editor/images';
   import { tabs } from '$lib/stores/tabs.svelte';
   import { status } from '$lib/stores/editorStatus.svelte';
 
@@ -33,7 +33,7 @@
   }
 
   onMount(() => {
-    initEditor(onUpdate);
+    initEditor(onUpdate, [imageDropPasteExtension()]);
     mountView(host);
     notifyDocChanged(); // 初始空渲染
 

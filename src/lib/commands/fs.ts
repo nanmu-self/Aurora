@@ -42,6 +42,32 @@ export function writeTextFile(path: string, contents: string): Promise<void> {
   return invoke('write_text_file', { path, contents });
 }
 
+/* ---------------- 图片落盘（M3） ---------------- */
+
+export function ensureDir(path: string): Promise<void> {
+  return invoke('ensure_dir', { path });
+}
+
+/** 写入二进制文件（base64 传输） */
+export async function writeBinaryFile(path: string, bytes: Uint8Array): Promise<void> {
+  let binary = '';
+  const chunk = 0x8000;
+  for (let i = 0; i < bytes.length; i += chunk) {
+    binary += String.fromCharCode(...bytes.subarray(i, i + chunk));
+  }
+  await invoke('write_binary_file', { path, dataB64: btoa(binary) });
+}
+
+/* ---------------- 文件监听（M3 / S3） ---------------- */
+
+export function watchWorkspace(dir: string): Promise<void> {
+  return invoke('watch_workspace', { dir });
+}
+
+export function unwatchAll(): Promise<void> {
+  return invoke('unwatch_all');
+}
+
 /* ---------------- 工作区 ---------------- */
 
 /** 选择文件夹作为工作区（取消返回 null） */

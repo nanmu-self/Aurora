@@ -1,8 +1,20 @@
 <script lang="ts">
   import { ui } from '$lib/stores/ui.svelte';
   import { workspace } from '$lib/stores/workspace.svelte';
+  import { outline } from '$lib/stores/outline.svelte';
+  import { status } from '$lib/stores/editorStatus.svelte';
   import { basename } from '$lib/path';
   import FileTree from './FileTree.svelte';
+
+  /** 当前光标所在章节：最后一个起始行 ≤ 光标行的大纲项 */
+  const activeIndex = $derived.by(() => {
+    let idx = -1;
+    for (let i = 0; i < outline.items.length; i++) {
+      if (outline.items[i].line <= status.ln) idx = i;
+      else break;
+    }
+    return idx;
+  });
 
   const tabs = [
     { id: 'files', label: '文件' },
@@ -84,10 +96,26 @@
         </div>
       {/if}
     {:else}
-      <p class="empty-hint">
-        文档大纲将显示在这里
-        <span>M3 · 写作体验</span>
-      </p>
+      {#if outline.items.length === 0}
+        <p class="empty-hint">
+          暂无标题
+          <span>用 # 开头写标题即可生成大纲</span>
+        </p>
+      {:else}
+        <div class="outline" role="list">
+          {#each outline.items as item, i (item.line)}
+            <button
+              class="o-item"
+              class:on={i === activeIndex}
+              style:padding-left="{10 + (item.level - 1) * 12}px"
+              onclick={() => outline.jump(item)}
+            >
+              <span class="o-level">H{item.level}</span>
+              <span class="o-title" title={item.title}>{item.title}</span>
+            </button>
+          {/each}
+        </div>
+      {/if}
     {/if}
   </div>
 </aside>
@@ -287,5 +315,68 @@
   .empty-hint span {
     font-size: 11px;
     opacity: 0.65;
+  }
+
+  /* ---------- 大纲 ---------- */
+  .outline {
+    flex: 1;
+    overflow-y: auto;
+    padding: 6px 6px 16px;
+  }
+
+  .o-item {
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+    width: 100%;
+    padding: 4px 8px;
+    border-radius: var(--radius-sm);
+    text-align: left;
+    transition:
+      background var(--dur-fast) var(--ease-out),
+      color var(--dur-fast) var(--ease-out);
+  }
+
+  .o-item:hover {
+    background: var(--bg-elevated);
+  }
+
+  .o-item.on {
+    background: var(--bg-elevated);
+  }
+
+  .o-item.on .o-title {
+    color: var(--text-primary);
+    font-weight: 500;
+  }
+
+  /* 当前章节左侧的极光指示线 */
+  .o-item.on::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    width: 2px;
+    height: 14px;
+    border-radius: 1px;
+    background: var(--aurora-gradient);
+  }
+
+  .o-item {
+    position: relative;
+  }
+
+  .o-level {
+    flex-shrink: 0;
+    font-size: 9.5px;
+    color: var(--text-tertiary);
+    opacity: 0.75;
+  }
+
+  .o-title {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 12px;
+    color: var(--text-secondary);
   }
 </style>
