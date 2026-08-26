@@ -154,9 +154,15 @@
   });
 
   // 大纲跳转依赖 jumpToLine 的 scrollIntoView → 编辑器滚动事件 → 本组件同步跟随
+  /* ⌘/Ctrl + 滚轮缩放预览（触控板双指捉放也以 ctrlKey=true 的 wheel 事件到达） */
+  function onWheel(e: WheelEvent): void {
+    if (!e.ctrlKey && !e.metaKey) return;
+    e.preventDefault();
+    layout.setPreviewZoom(layout.previewZoom - e.deltaY * 0.01);
+  }
 </script>
 
-<div class="preview-scroll" bind:this={scrollEl}>
+<div class="preview-scroll" bind:this={scrollEl} onwheel={onWheel}>
   <div class="preview-col md-preview" bind:this={container}></div>
 </div>
 
@@ -170,9 +176,12 @@
 
   .preview-col {
     position: relative; /* 子块 offsetTop 以列为基准，与 scrollTop 同坐标系 */
-    max-width: 46rem;
+    /* 缩放用字号驱动（prose 内部均为 em 相对单位），而不用 CSS zoom：
+       zoom 会改变 offsetTop 的坐标系，打买锚点滚动同步的换算 */
+    font-size: calc(15px * var(--preview-zoom, 1));
+    max-width: 46em; /* em 而非 rem：版心随字号等比伸缩 */
     margin: 0 auto;
-    padding: 32px 40px 45vh; /* 底部大留白：末段内容也能滚到舒适阅读位置 */
+    padding: 2.1em 2.6em 45vh; /* 底部大留白：末段内容也能滚到舒适阅读位置 */
     user-select: text;
     cursor: auto;
   }

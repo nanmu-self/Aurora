@@ -14,12 +14,16 @@ export const SIDEBAR_MAX = 560;
 export const RATIO_DEFAULT = 0.5;
 export const RATIO_MIN = 0.15;
 export const RATIO_MAX = 0.85;
+export const ZOOM_MIN = 0.6;
+export const ZOOM_MAX = 2.5;
+export const ZOOM_STEP = 0.1;
 
 interface Saved {
   sidebarWidth: number;
   splitRatio: number;
   sidebarCollapsed: boolean;
   viewMode: ViewMode;
+  previewZoom: number;
 }
 
 /** 分栏 / 仅编辑区 / 仅预览区 */
@@ -39,6 +43,7 @@ function load(): Saved {
     splitRatio: RATIO_DEFAULT,
     sidebarCollapsed: false,
     viewMode: 'split',
+    previewZoom: 1,
   };
   try {
     const raw = localStorage.getItem(LAYOUT_KEY);
@@ -49,6 +54,7 @@ function load(): Saved {
         splitRatio: clamp(Number(p.splitRatio) || RATIO_DEFAULT, RATIO_MIN, RATIO_MAX),
         sidebarCollapsed: p.sidebarCollapsed === true,
         viewMode: isViewMode(p.viewMode) ? p.viewMode : 'split',
+        previewZoom: clamp(Number(p.previewZoom) || 1, ZOOM_MIN, ZOOM_MAX),
       };
     }
   } catch {
@@ -62,6 +68,8 @@ class LayoutStore {
   splitRatio = $state(RATIO_DEFAULT);
   sidebarCollapsed = $state(false);
   viewMode = $state<ViewMode>('split');
+  /** 预览区缩放倍率（字号驱动，非 CSS zoom：保持 offsetTop 与 scrollTop 同坐标系） */
+  previewZoom = $state(1);
 
   /** 拖动中：用于给 body 加 col-resize 光标、暂停过渡 */
   dragging = $state(false);
@@ -75,6 +83,7 @@ class LayoutStore {
     this.splitRatio = saved.splitRatio;
     this.sidebarCollapsed = saved.sidebarCollapsed;
     this.viewMode = saved.viewMode;
+    this.previewZoom = saved.previewZoom;
   }
 
   /** 编辑区是否可见（仅预览模式下隐藏，但始终保持挂载） */
@@ -101,6 +110,24 @@ class LayoutStore {
   cycleViewMode(): void {
     const order: ViewMode[] = ['split', 'editor', 'preview'];
     this.setViewMode(order[(order.indexOf(this.viewMode) + 1) % order.length]);
+  }
+
+  setPreviewZoom(z: number): void {
+    // 量化到 0.05 网格，避免滚轮缩放后出现 1.0300000000000002 这类值
+    this.previewZoom = Math.round(clamp(z, ZOOM_MIN, ZOOM_MAX) * 20) / 20;
+    this.#persist();
+  }
+
+  zoomIn(): void {
+    this.setPreviewZoom(this.previewZoom + ZOOM_STEP);
+  }
+
+  zoomOut(): void {
+    this.setPreviewZoom(this.previewZoom - ZOOM_STEP);
+  }
+
+  resetZoom(): void {
+    this.setPreviewZoom(1);
   }
 
   setSidebarWidth(px: number): void {
@@ -135,6 +162,7 @@ class LayoutStore {
             splitRatio: this.splitRatio,
             sidebarCollapsed: this.sidebarCollapsed,
             viewMode: this.viewMode,
+            previewZoom: this.previewZoom,
           }),
         );
       } catch {

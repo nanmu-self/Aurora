@@ -293,6 +293,15 @@
       case 'view.mode.preview':
         layout.setViewMode('preview');
         break;
+      case 'view.zoom.in':
+        layout.zoomIn();
+        break;
+      case 'view.zoom.out':
+        layout.zoomOut();
+        break;
+      case 'view.zoom.reset':
+        layout.resetZoom();
+        break;
     }
   }
 
@@ -344,6 +353,19 @@
         e.preventDefault();
         layout.setViewMode('preview');
         break;
+      case '=':
+      case '+':
+        e.preventDefault();
+        layout.zoomIn();
+        break;
+      case '-':
+        e.preventDefault();
+        layout.zoomOut();
+        break;
+      case '0':
+        e.preventDefault();
+        layout.resetZoom();
+        break;
       case 'n':
         e.preventDefault();
         actionNew();
@@ -393,7 +415,7 @@
 
 <svelte:window onkeydown={onKeydown} />
 
-<div class="app-shell" style:--sidebar-width={`${layout.sidebarWidth}px`}>
+<div class="app-shell" style:--sidebar-width={`${layout.sidebarWidth}px`} style:--preview-zoom={layout.previewZoom}>
   <TitleBar onOpenSettings={() => (settingsOpen = true)} onExport={() => void actionExportHtml()} />
   <TabBar onRequestClose={requestCloseTab} />
 

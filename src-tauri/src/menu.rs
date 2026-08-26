@@ -163,6 +163,10 @@ pub fn build(app: &AppHandle) -> tauri::Result<Menu<Wry>> {
         Some("CmdOrCtrl+3"),
     )?;
     let toggle_theme = MenuItem::with_id(app, "view.theme", "切换深浅主题", true, None::<&str>)?;
+    let zoom_in = MenuItem::with_id(app, "view.zoom.in", "预览放大", true, Some("CmdOrCtrl+="))?;
+    let zoom_out = MenuItem::with_id(app, "view.zoom.out", "预览缩小", true, Some("CmdOrCtrl+-"))?;
+    let zoom_reset =
+        MenuItem::with_id(app, "view.zoom.reset", "预览实际大小", true, Some("CmdOrCtrl+0"))?;
     let view_menu = Submenu::with_items(
         app,
         "视图",
@@ -173,6 +177,10 @@ pub fn build(app: &AppHandle) -> tauri::Result<Menu<Wry>> {
             &mode_editor,
             &mode_split,
             &mode_preview,
+            &PredefinedMenuItem::separator(app)?,
+            &zoom_in,
+            &zoom_out,
+            &zoom_reset,
             &PredefinedMenuItem::separator(app)?,
             &toggle_theme,
             &PredefinedMenuItem::separator(app)?,

@@ -177,7 +177,7 @@
   background: none;
   border: none;
   padding: 0;
-  font-size: 12.5px;
+  font-size: 0.86em; /* em：跟随预览缩放，勿用固定 px */
 }
 
 /* highlight.js token 配色（色值走主题变量，明暗自适应） */

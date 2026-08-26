@@ -6,6 +6,7 @@
   import { dirname } from '$lib/path';
   import ContextMenu from './ContextMenu.svelte';
   import type { MenuItem } from './ContextMenu.svelte';
+  import { closeAllContextMenus } from './menuBus';
 
   /* ---------------- 可见行推导（扁平化树 + 输入行占位） ---------------- */
 
@@ -141,6 +142,10 @@
 
   function openMenu(e: MouseEvent, r?: TreeRow): void {
     e.preventDefault();
+    // 行上的右键必须阻止冒泡：否则会继续触发 .tree 的根级菜单并把行菜单
+    // （重命名/删除/在访达中显示）整个覆盖掉
+    e.stopPropagation();
+    closeAllContextMenus(); // 关掉别处可能开着的菜单
     menu = { x: e.clientX, y: e.clientY, items: menuFor(r) };
   }
 </script>
