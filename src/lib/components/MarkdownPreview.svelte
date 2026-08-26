@@ -6,6 +6,7 @@
   import { tabs } from '$lib/stores/tabs.svelte';
   import { workspace } from '$lib/stores/workspace.svelte';
   import { settings } from '$lib/stores/settings.svelte';
+  import { layout } from '$lib/stores/layout.svelte';
   import { dirname } from '$lib/path';
   import 'katex/dist/katex.min.css';
   import '$lib/styles/prose.css';
@@ -70,7 +71,7 @@
   }
 
   function editorToPreview(): void {
-    if (!settings.scrollSync) return;
+    if (!settings.scrollSync || layout.viewMode !== 'split') return; // 单栏模式无需同步
     const v = getView();
     if (!v || !scrollEl || !container) return;
     if (v.scrollDOM.scrollHeight <= v.scrollDOM.clientHeight + 2) return;
@@ -98,7 +99,7 @@
   }
 
   function previewToEditor(): void {
-    if (!settings.scrollSync) return;
+    if (!settings.scrollSync || layout.viewMode !== 'split') return;
     const v = getView();
     if (!v) return;
     if (scrollEl.scrollHeight <= scrollEl.clientHeight + 2) return;

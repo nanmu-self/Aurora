@@ -16,3 +16,8 @@ export function greet(name: string): Promise<string> {
 export function exitApp(): Promise<void> {
   return invoke('exit_app');
 }
+
+/** 同步 macOS 视图菜单的勾选态（浏览器调试环境下会失败，调用方忽略即可）。 */
+export function syncViewMenu(mode: string, sidebarVisible: boolean): Promise<void> {
+  return invoke('sync_view_menu', { mode, sidebarVisible });
+}

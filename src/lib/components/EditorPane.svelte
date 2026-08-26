@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import type { ViewUpdate } from '@codemirror/view';
-  import { initEditor, mountView, unmountView, notifyDocChanged } from '$lib/editor/bridge';
+  import { initEditor, mountView, unmountView, notifyDocChanged, getView } from '$lib/editor/bridge';
   import { imageDropPasteExtension } from '$lib/editor/images';
   import { tabs } from '$lib/stores/tabs.svelte';
   import { status } from '$lib/stores/editorStatus.svelte';
@@ -13,6 +13,17 @@
    * S1 IME 约束依旧成立：预览通知走防抖，update 回调内绝无同步重渲染。
    */
   const PREVIEW_DEBOUNCE_MS = 180;
+
+  interface Props {
+    /**
+     * 是否可见（仅预览模式下为 false）。
+     * 注意：这里只能用 CSS 隐藏而不能卸载——unmountView() 会销毁视图并
+     * clear 所有标签的 EditorState（含正文与撤销栈）。
+     */
+    visible?: boolean;
+  }
+
+  let { visible = true }: Props = $props();
 
   let host: HTMLElement;
   let previewTimer: ReturnType<typeof setTimeout> | undefined;
@@ -42,9 +53,13 @@
       unmountView();
     };
   });
+  /* 从隐藏恢复可见时，CM6 需要重新量测几何（display:none 期间尺寸为 0） */
+  $effect(() => {
+    if (visible) getView()?.requestMeasure();
+  });
 </script>
 
-<section class="editor-pane">
+<section class="editor-pane" class:hidden={!visible}>
   <div class="editor-host" bind:this={host}></div>
 </section>
 
@@ -55,6 +70,11 @@
     height: 100%;
     min-width: 0;
     background: var(--bg-content);
+  }
+
+  /* display:none 的元素不参与 grid 布局，预览区会自然占满唯一列 */
+  .editor-pane.hidden {
+    display: none;
   }
 
   .editor-host {

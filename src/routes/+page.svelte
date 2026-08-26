@@ -16,7 +16,7 @@
   import { getActiveText } from '$lib/editor/bridge';
   import { runEditorAction } from '$lib/editor/actions';
   import { markdownToStandaloneHtml } from '$lib/markdown/export';
-  import { exitApp, greet } from '$lib/commands';
+  import { exitApp, greet, syncViewMenu } from '$lib/commands';
   import { pickOpenPath, pickSaveHtmlPath, writeTextFile } from '$lib/commands/fs';
   import { initAutosave, cancelAutosave } from '$lib/editor/autosave';
   import { outline } from '$lib/stores/outline.svelte';
@@ -197,6 +197,19 @@
     layout.setSplitRatio(layout.splitRatio + deltaPx / w);
   }
 
+  /* 分栏时三列（含 1px 分割条）；单栏时只需一列
+     —— 隐藏的编辑区是 display:none，不参与 grid 布局 */
+  const splitCols = $derived(
+    layout.viewMode === 'split'
+      ? `minmax(0, ${layout.splitRatio}fr) 1px minmax(0, ${1 - layout.splitRatio}fr)`
+      : 'minmax(0, 1fr)',
+  );
+
+  /* 菜单勾选态跟随界面状态（浏览器调试环境下无 Tauri，失败忽略） */
+  $effect(() => {
+    void syncViewMenu(layout.viewMode, !layout.sidebarCollapsed).catch(() => {});
+  });
+
   /* ---------------- 菜单栏（macOS 中文菜单）事件 ---------------- */
 
   /** 退出：先过未保存保护，确认后再确定性退出进程 */
@@ -268,6 +281,18 @@
       case 'view.theme':
         settings.toggle();
         break;
+      case 'view.sidebar':
+        layout.toggleSidebar();
+        break;
+      case 'view.mode.editor':
+        layout.setViewMode('editor');
+        break;
+      case 'view.mode.split':
+        layout.setViewMode('split');
+        break;
+      case 'view.mode.preview':
+        layout.setViewMode('preview');
+        break;
     }
   }
 
@@ -303,6 +328,22 @@
     }
 
     switch (e.key.toLowerCase()) {
+      case '\\':
+        e.preventDefault();
+        layout.toggleSidebar();
+        break;
+      case '1':
+        e.preventDefault();
+        layout.setViewMode('editor');
+        break;
+      case '2':
+        e.preventDefault();
+        layout.setViewMode('split');
+        break;
+      case '3':
+        e.preventDefault();
+        layout.setViewMode('preview');
+        break;
       case 'n':
         e.preventDefault();
         actionNew();
@@ -357,32 +398,35 @@
   <TabBar onRequestClose={requestCloseTab} />
 
   <div class="app-body" bind:this={bodyEl}>
-    <Sidebar />
-    <Resizer
-      label="调整侧栏宽度"
-      onmove={onSidebarDrag}
-      onnudge={(d) => layout.setSidebarWidth(layout.sidebarWidth + d)}
-      onreset={() => layout.resetSidebar()}
-      valueNow={layout.sidebarWidth}
-      valueMin={SIDEBAR_MIN}
-      valueMax={SIDEBAR_MAX}
-    />
-    <main
-      class="split"
-      bind:this={splitEl}
-      style:grid-template-columns={`minmax(0, ${layout.splitRatio}fr) 1px minmax(0, ${1 - layout.splitRatio}fr)`}
-    >
-      <EditorPane />
+    {#if !layout.sidebarCollapsed}
+      <Sidebar />
       <Resizer
-        label="调整编辑区与预览区比例"
-        onmove={onSplitDrag}
-        onnudge={nudgeSplit}
-        onreset={() => layout.resetSplit()}
-        valueNow={Math.round(layout.splitRatio * 100)}
-        valueMin={Math.round(RATIO_MIN * 100)}
-        valueMax={Math.round(RATIO_MAX * 100)}
+        label="调整侧栏宽度"
+        onmove={onSidebarDrag}
+        onnudge={(d) => layout.setSidebarWidth(layout.sidebarWidth + d)}
+        onreset={() => layout.resetSidebar()}
+        valueNow={layout.sidebarWidth}
+        valueMin={SIDEBAR_MIN}
+        valueMax={SIDEBAR_MAX}
       />
-      <PreviewPane />
+    {/if}
+    <main class="split" bind:this={splitEl} style:grid-template-columns={splitCols}>
+      <!-- 编辑区常驼：卸载会销毁 CM6 视图并清空所有标签的 EditorState -->
+      <EditorPane visible={layout.editorVisible} />
+      {#if layout.viewMode === 'split'}
+        <Resizer
+          label="调整编辑区与预览区比例"
+          onmove={onSplitDrag}
+          onnudge={nudgeSplit}
+          onreset={() => layout.resetSplit()}
+          valueNow={Math.round(layout.splitRatio * 100)}
+          valueMin={Math.round(RATIO_MIN * 100)}
+          valueMax={Math.round(RATIO_MAX * 100)}
+        />
+      {/if}
+      {#if layout.previewVisible}
+        <PreviewPane />
+      {/if}
     </main>
   </div>
 

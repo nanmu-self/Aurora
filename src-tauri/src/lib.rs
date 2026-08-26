@@ -32,6 +32,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             greet,
             exit_app,
+            menu::sync_view_menu,
             fs::read_text_file,
             fs::write_text_file,
             fs::ensure_dir,

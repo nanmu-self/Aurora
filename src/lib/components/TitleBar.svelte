@@ -1,6 +1,7 @@
 <script lang="ts">
   import { settings } from '$lib/stores/settings.svelte';
   import { tabs } from '$lib/stores/tabs.svelte';
+  import { layout, type ViewMode } from '$lib/stores/layout.svelte';
 
   interface Props {
     onOpenSettings: () => void;
@@ -10,6 +11,12 @@
   let { onOpenSettings, onExport }: Props = $props();
 
   const isDark = $derived(settings.resolved === 'dark');
+
+  const MODES: { mode: ViewMode; label: string; hint: string }[] = [
+    { mode: 'editor', label: '仅编辑区', hint: '仅编辑区（Cmd+1）' },
+    { mode: 'split', label: '分栏', hint: '分栏（Cmd+2）' },
+    { mode: 'preview', label: '仅预览区', hint: '仅预览区（Cmd+3）' },
+  ];
 </script>
 
 <!--
@@ -21,6 +28,23 @@
 <header class="titlebar">
   <div class="traffic-spacer" aria-hidden="true"></div>
 
+  <button
+    class="icon-btn"
+    class:off={layout.sidebarCollapsed}
+    onclick={() => layout.toggleSidebar()}
+    title={layout.sidebarCollapsed ? '显示侧栏（Cmd+\\）' : '隐藏侧栏（Cmd+\\）'}
+    aria-label="切换侧栏"
+    aria-pressed={!layout.sidebarCollapsed}
+  >
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round">
+      <rect x="3" y="4" width="18" height="16" rx="2" />
+      <path d="M9 4v16" />
+      {#if !layout.sidebarCollapsed}
+        <path d="M3.8 4.8h4.4v14.4H3.8z" fill="currentColor" stroke="none" opacity="0.35" />
+      {/if}
+    </svg>
+  </button>
+
   <div
     class="title"
     data-tauri-drag-region
@@ -30,6 +54,34 @@
   </div>
 
   <div class="actions">
+    <div class="segmented" role="group" aria-label="视图模式">
+      {#each MODES as m (m.mode)}
+        <button
+          class="seg-btn"
+          class:active={layout.viewMode === m.mode}
+          onclick={() => layout.setViewMode(m.mode)}
+          title={m.hint}
+          aria-label={m.label}
+          aria-pressed={layout.viewMode === m.mode}
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round">
+            <rect x="3" y="5" width="18" height="14" rx="2" />
+            {#if m.mode === 'split'}
+              <path d="M12 5v14" />
+            {:else if m.mode === 'editor'}
+              <!-- 源码：尖括号 -->
+              <path d="m9 10-2 2 2 2m6-4 2 2-2 2" stroke-linecap="round" />
+            {:else}
+              <!-- 预览：已排版的段落 -->
+              <path d="M7 9.5h10M7 13h7M7 16h4" stroke-linecap="round" />
+            {/if}
+          </svg>
+        </button>
+      {/each}
+    </div>
+
+    <div class="bar-divider" aria-hidden="true"></div>
+
     <button class="icon-btn" title="导出 HTML（Cmd+Shift+E）" aria-label="导出 HTML" onclick={onExport}>
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <path d="M12 3v12m0 0 4-4m-4 4-4-4" />
@@ -104,8 +156,58 @@
 
   .actions {
     display: flex;
+    align-items: center;
     gap: 4px;
     margin-left: auto;
+  }
+
+  /* 侧栏已折叠时图标减弱 */
+  .icon-btn.off {
+    opacity: 0.55;
+  }
+
+  /* 三态视图模式切换 */
+  .segmented {
+    display: flex;
+    gap: 2px;
+    padding: 2px;
+    background: var(--bg-elevated);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-md);
+  }
+
+  .seg-btn {
+    display: grid;
+    place-items: center;
+    width: 24px;
+    height: 20px;
+    border-radius: var(--radius-sm);
+    color: var(--text-tertiary);
+    transition:
+      background var(--dur-fast) var(--ease-out),
+      color var(--dur-fast) var(--ease-out);
+  }
+
+  .seg-btn svg {
+    width: 14px;
+    height: 14px;
+  }
+
+  .seg-btn:hover {
+    color: var(--text-primary);
+  }
+
+  .seg-btn.active {
+    background: var(--bg-chrome);
+    color: var(--accent);
+    box-shadow: inset 0 0 0 1px var(--border-strong);
+  }
+
+  .bar-divider {
+    width: 1px;
+    height: 16px;
+    margin: 0 4px;
+    background: var(--border-subtle);
   }
 
   .icon-btn {
