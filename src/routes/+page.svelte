@@ -431,17 +431,24 @@
   onMount(() => {
     let unlisten: (() => void) | undefined;
     getCurrentWindow()
-      .onCloseRequested((event) => {
+      .onCloseRequested(async (event) => {
+        // 统一接管：始终 preventDefault，由我们自己决定关不关。
+        // 不依赖 Tauri JS 包裹层的默认 destroy —— 那条路的权限失败是静默的。
+        event.preventDefault();
         const dirtyCount = tabs.tabs.filter((t) => t.dirty).length;
         if (dirtyCount > 0) {
-          event.preventDefault();
           confirmMessage =
             dirtyCount === 1
               ? `「${tabs.tabs.find((t) => t.dirty)?.title}」有未保存的更改，关闭窗口将丢失这些修改。`
               : `${dirtyCount} 个标签页有未保存的更改，关闭窗口将丢失这些修改。`;
           pendingAction = () => void getCurrentWindow().destroy();
           confirmOpen = true;
+          return;
         }
+        await getCurrentWindow().destroy().catch((err) => {
+          console.error('[aurora] 关闭窗口失败（检查 core:window:allow-destroy 权限）', err);
+          status.show('关闭失败：权限不足，请查看控制台');
+        });
       })
       .then((u) => {
         unlisten = u;
