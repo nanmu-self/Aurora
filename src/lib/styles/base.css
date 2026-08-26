@@ -85,3 +85,9 @@ svg {
 ::-webkit-scrollbar-thumb:hover {
   background: var(--text-tertiary);
 }
+
+/* 拖动分割条期间：全局锁定 col-resize 光标，避免掠过编辑区变回 text 光标 */
+body.is-resizing,
+body.is-resizing * {
+  cursor: col-resize !important;
+}

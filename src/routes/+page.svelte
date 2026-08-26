@@ -12,6 +12,7 @@
   import SettingsDialog from '$lib/components/SettingsDialog.svelte';
   import SearchDialog from '$lib/components/SearchDialog.svelte';
   import GlobalContextMenu from '$lib/components/GlobalContextMenu.svelte';
+  import Resizer from '$lib/components/Resizer.svelte';
   import { getActiveText } from '$lib/editor/bridge';
   import { runEditorAction } from '$lib/editor/actions';
   import { markdownToStandaloneHtml } from '$lib/markdown/export';
@@ -23,6 +24,8 @@
   import { workspace } from '$lib/stores/workspace.svelte';
   import { status } from '$lib/stores/editorStatus.svelte';
   import { settings } from '$lib/stores/settings.svelte';
+  import { layout } from '$lib/stores/layout.svelte';
+  import { RATIO_MAX, RATIO_MIN, SIDEBAR_MAX, SIDEBAR_MIN } from '$lib/stores/layout.svelte';
   import { dirname } from '$lib/path';
 
   /* ---------------- IPC 冒烟（M0） + M3 派生服务 ---------------- */
@@ -166,6 +169,32 @@
 
   function closeActiveTab(): void {
     if (tabs.activeId) requestCloseTab(tabs.activeId);
+  }
+
+  /* ---------------- 分栏拖动 ---------------- */
+
+  let bodyEl: HTMLElement | undefined = $state();
+  let splitEl: HTMLElement | undefined = $state();
+
+  /** 侧栏：指针 x 减去容器左边界即宽度 */
+  function onSidebarDrag(clientX: number): void {
+    if (!bodyEl) return;
+    layout.setSidebarWidth(clientX - bodyEl.getBoundingClientRect().left);
+  }
+
+  /** 分栏：换算成编辑区占比 */
+  function onSplitDrag(clientX: number): void {
+    if (!splitEl) return;
+    const rect = splitEl.getBoundingClientRect();
+    if (rect.width <= 0) return;
+    layout.setSplitRatio((clientX - rect.left) / rect.width);
+  }
+
+  function nudgeSplit(deltaPx: number): void {
+    if (!splitEl) return;
+    const w = splitEl.getBoundingClientRect().width;
+    if (w <= 0) return;
+    layout.setSplitRatio(layout.splitRatio + deltaPx / w);
   }
 
   /* ---------------- 菜单栏（macOS 中文菜单）事件 ---------------- */
@@ -323,14 +352,36 @@
 
 <svelte:window onkeydown={onKeydown} />
 
-<div class="app-shell">
+<div class="app-shell" style:--sidebar-width={`${layout.sidebarWidth}px`}>
   <TitleBar onOpenSettings={() => (settingsOpen = true)} onExport={() => void actionExportHtml()} />
   <TabBar onRequestClose={requestCloseTab} />
 
-  <div class="app-body">
+  <div class="app-body" bind:this={bodyEl}>
     <Sidebar />
-    <main class="split">
+    <Resizer
+      label="调整侧栏宽度"
+      onmove={onSidebarDrag}
+      onnudge={(d) => layout.setSidebarWidth(layout.sidebarWidth + d)}
+      onreset={() => layout.resetSidebar()}
+      valueNow={layout.sidebarWidth}
+      valueMin={SIDEBAR_MIN}
+      valueMax={SIDEBAR_MAX}
+    />
+    <main
+      class="split"
+      bind:this={splitEl}
+      style:grid-template-columns={`minmax(0, ${layout.splitRatio}fr) 1px minmax(0, ${1 - layout.splitRatio}fr)`}
+    >
       <EditorPane />
+      <Resizer
+        label="调整编辑区与预览区比例"
+        onmove={onSplitDrag}
+        onnudge={nudgeSplit}
+        onreset={() => layout.resetSplit()}
+        valueNow={Math.round(layout.splitRatio * 100)}
+        valueMin={Math.round(RATIO_MIN * 100)}
+        valueMax={Math.round(RATIO_MAX * 100)}
+      />
       <PreviewPane />
     </main>
   </div>
@@ -365,12 +416,12 @@
   }
 
   /* 编辑器 | 预览 分栏。
+   * 列宽由 layout.splitRatio 逐帧写入 style（中间 1px 是分割条）。
    * 关键：行必须钉死为容器高（minmax(0,1fr)）。
    * 若用隐式 auto 行，行高会被内容撑开，子项的 height:100% 循环解析
    * 退化为内容高 → 内部滚动容器永不溢出 → 文档无法滚动（v0.1 实测踩坑）。 */
   .split {
     display: grid;
-    grid-template-columns: 1fr 1fr;
     grid-template-rows: minmax(0, 1fr);
     flex: 1;
     min-width: 0;

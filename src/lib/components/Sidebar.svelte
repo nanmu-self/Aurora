@@ -127,7 +127,6 @@
     flex-shrink: 0;
     width: var(--sidebar-width);
     background: var(--bg-chrome);
-    border-right: 1px solid var(--border-subtle);
   }
 
   .tabs {

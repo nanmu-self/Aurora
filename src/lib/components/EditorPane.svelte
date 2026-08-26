@@ -55,7 +55,6 @@
     height: 100%;
     min-width: 0;
     background: var(--bg-content);
-    border-right: 1px solid var(--border-subtle);
   }
 
   .editor-host {
