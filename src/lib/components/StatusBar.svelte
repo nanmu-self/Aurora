@@ -2,8 +2,7 @@
   import { tabs } from '$lib/stores/tabs.svelte';
   import { status } from '$lib/stores/editorStatus.svelte';
   import { layout } from '$lib/stores/layout.svelte';
-
-  const zoomPercent = $derived(Math.round(layout.previewZoom * 100));
+  import ZoomControl from './ZoomControl.svelte';
 </script>
 
 <!--
@@ -20,15 +19,14 @@
   </div>
 
   <div class="group">
+    <!-- 缩放控件常驼（预览可见时），不被瞬时通知顶掉，避免面板交互中途消失 -->
+    {#if layout.previewVisible}
+      <ZoomControl />
+      <span class="sep">·</span>
+    {/if}
     {#if status.notice}
       <span class="item notice">{status.notice}</span>
     {:else}
-      {#if zoomPercent !== 100 && layout.previewVisible}
-        <button class="item zoom" onclick={() => layout.resetZoom()} title="点击恢复 100%（Cmd+0）">
-          预览 {zoomPercent}%
-        </button>
-        <span class="sep">·</span>
-      {/if}
       <span class="item muted">约 {status.minutes} 分钟</span>
       <span class="sep">·</span>
       <span class="item">
@@ -88,18 +86,5 @@
 
   .muted {
     opacity: 0.85;
-  }
-
-  /* 预览缩放指示（仅 ≠100% 时出现，点击即复位） */
-  .zoom {
-    color: var(--accent);
-    font-size: 11px;
-    border-radius: var(--radius-sm);
-    padding: 1px 4px;
-    transition: background var(--dur-fast) var(--ease-out);
-  }
-
-  .zoom:hover {
-    background: var(--bg-elevated);
   }
 </style>
