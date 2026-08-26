@@ -6,9 +6,16 @@
 
   let { children }: { children: Snippet } = $props();
 
-  // 把解析后的主题同步到根元素，全部 token 跟随切换
+  // 把解析后的主题与用户偏好同步到根元素
   $effect(() => {
     document.documentElement.dataset.theme = settings.resolved;
+  });
+
+  $effect(() => {
+    document.documentElement.style.setProperty(
+      '--editor-font-size',
+      `${settings.editorFontSize}px`,
+    );
   });
 </script>
 

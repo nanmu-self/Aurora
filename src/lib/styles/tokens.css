@@ -11,6 +11,9 @@
   --accent-to: #818cf8;   /* 靛紫 */
   --aurora-gradient: linear-gradient(135deg, var(--accent-from), var(--accent-to));
 
+  /* ---- 编辑器字号（设置页可调） ---- */
+  --editor-font-size: 14px;
+
   /* ---- 尺寸 ---- */
   --titlebar-height: 40px;
   --statusbar-height: 24px;

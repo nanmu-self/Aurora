@@ -41,6 +41,7 @@ const auroraTheme = EditorView.theme({
     caretColor: 'var(--accent)',
     lineHeight: '1.85',
     padding: '28px 32px',
+    fontSize: 'var(--editor-font-size)',
     /* 舒适行宽：内容居中限宽，滚动条仍贴边 */
     maxWidth: 'calc(46rem + 64px)',
     margin: '0 auto',

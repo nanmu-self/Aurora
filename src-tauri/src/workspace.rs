@@ -102,3 +102,83 @@ pub fn allow_workspace_assets(app: tauri::AppHandle, dir: String) -> Result<(), 
         .allow_directory(&dir, true)
         .map_err(|e| format!("asset 授权失败：{e}"))
 }
+
+/* ---------------- 全局搜索（M4） ---------------- */
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SearchHit {
+    pub path: String,
+    pub line: u64,
+    pub text: String,
+}
+
+const SEARCH_MAX_HITS: usize = 300;
+const SEARCH_MAX_FILES: usize = 5000;
+const SEARCH_MAX_FILE_SIZE: u64 = 2 * 1024 * 1024;
+const SEARCH_EXTS: [&str; 3] = ["md", "markdown", "txt"];
+
+/// 递归收集可搜索文件（跳过隐藏目录与超大文件，显式栈防爆栈）
+fn collect_files(root: &Path) -> Vec<std::path::PathBuf> {
+    let mut files = Vec::new();
+    let mut stack = vec![root.to_path_buf()];
+    while let Some(dir) = stack.pop() {
+        let Ok(rd) = std::fs::read_dir(&dir) else { continue };
+        for item in rd.flatten() {
+            let path = item.path();
+            let name = item.file_name().to_string_lossy().to_string();
+            if name.starts_with('.') {
+                continue;
+            }
+            if path.is_dir() {
+                stack.push(path);
+            } else if matches!(
+                path.extension().and_then(|e| e.to_str()),
+                Some(ext) if SEARCH_EXTS.contains(&ext.to_lowercase().as_str())
+            ) && std::fs::metadata(&path).map(|m| m.len() <= SEARCH_MAX_FILE_SIZE).unwrap_or(false)
+            {
+                files.push(path);
+                if files.len() >= SEARCH_MAX_FILES {
+                    return files;
+                }
+            }
+        }
+    }
+    files
+}
+
+/// 工作区全文搜索：大小写不敏感子串匹配，返回命中行。
+#[tauri::command]
+pub fn search_workspace(root: String, query: String) -> Result<Vec<SearchHit>, String> {
+    let q = query.trim().to_lowercase();
+    if q.is_empty() {
+        return Ok(Vec::new());
+    }
+    let root_path = Path::new(&root);
+    if !root_path.is_dir() {
+        return Err(format!("不是有效目录：{}", root));
+    }
+
+    let mut hits = Vec::new();
+    for file in collect_files(root_path) {
+        let content = match std::fs::read_to_string(&file) {
+            Ok(c) => c,
+            Err(_) => continue, // 二进制或不可解码文件跳过
+        };
+        for (i, line) in content.lines().enumerate() {
+            if line.to_lowercase().contains(&q) {
+                let trimmed = line.trim();
+                let text: String = trimmed.chars().take(160).collect();
+                hits.push(SearchHit {
+                    path: file.to_string_lossy().to_string(),
+                    line: (i + 1) as u64,
+                    text,
+                });
+                if hits.len() >= SEARCH_MAX_HITS {
+                    return Ok(hits);
+                }
+            }
+        }
+    }
+    Ok(hits)
+}

@@ -2,6 +2,13 @@
   import { settings } from '$lib/stores/settings.svelte';
   import { tabs } from '$lib/stores/tabs.svelte';
 
+  interface Props {
+    onOpenSettings: () => void;
+    onExport: () => void;
+  }
+
+  let { onOpenSettings, onExport }: Props = $props();
+
   const isDark = $derived(settings.resolved === 'dark');
 </script>
 
@@ -23,6 +30,18 @@
   </div>
 
   <div class="actions">
+    <button class="icon-btn" title="导出 HTML（Cmd+Shift+E）" aria-label="导出 HTML" onclick={onExport}>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M12 3v12m0 0 4-4m-4 4-4-4" />
+        <path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" />
+      </svg>
+    </button>
+    <button class="icon-btn" title="设置（全局搜索 Cmd+Shift+F）" aria-label="设置" onclick={onOpenSettings}>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="3" />
+        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33h.01a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51h.01a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82v.01a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z" />
+      </svg>
+    </button>
     <button
       class="icon-btn"
       onclick={() => settings.toggle()}

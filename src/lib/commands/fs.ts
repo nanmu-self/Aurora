@@ -34,6 +34,14 @@ export function pickSavePath(defaultName: string): Promise<string | null> {
   return save({ defaultPath: defaultName, filters: MD_FILTERS }) as Promise<string | null>;
 }
 
+/** 导出 HTML 用保存对话框 */
+export function pickSaveHtmlPath(defaultName: string): Promise<string | null> {
+  return save({
+    defaultPath: defaultName,
+    filters: [{ name: 'HTML', extensions: ['html'] }],
+  }) as Promise<string | null>;
+}
+
 export function readTextFile(path: string): Promise<string> {
   return invoke('read_text_file', { path });
 }
@@ -66,6 +74,18 @@ export function watchWorkspace(dir: string): Promise<void> {
 
 export function unwatchAll(): Promise<void> {
   return invoke('unwatch_all');
+}
+
+/* ---------------- 工作区全局搜索（M4） ---------------- */
+
+export interface SearchHit {
+  path: string;
+  line: number;
+  text: string;
+}
+
+export function searchWorkspace(root: string, query: string): Promise<SearchHit[]> {
+  return invoke('search_workspace', { root, query });
 }
 
 /* ---------------- 工作区 ---------------- */

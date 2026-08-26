@@ -9,8 +9,12 @@
   import PreviewPane from '$lib/components/PreviewPane.svelte';
   import StatusBar from '$lib/components/StatusBar.svelte';
   import ConfirmDialog from '$lib/components/ConfirmDialog.svelte';
+  import SettingsDialog from '$lib/components/SettingsDialog.svelte';
+  import SearchDialog from '$lib/components/SearchDialog.svelte';
+  import { getActiveText } from '$lib/editor/bridge';
+  import { markdownToStandaloneHtml } from '$lib/markdown/export';
   import { greet } from '$lib/commands';
-  import { pickOpenPath } from '$lib/commands/fs';
+  import { pickOpenPath, pickSaveHtmlPath, writeTextFile } from '$lib/commands/fs';
   import { initAutosave, cancelAutosave } from '$lib/editor/autosave';
   import { outline } from '$lib/stores/outline.svelte';
   import { tabs } from '$lib/stores/tabs.svelte';
@@ -61,6 +65,8 @@
   let confirmOpen = $state(false);
   let confirmMessage = $state('');
   let pendingAction: (() => void) | null = null;
+  let settingsOpen = $state(false);
+  let searchOpen = $state(false);
 
   /** 有未保存修改时先弹确认，确认后执行目标动作 */
   function guard(action: () => void, what: string, tabTitle?: string): void {
@@ -128,6 +134,22 @@
     return tabs.saveActiveAs();
   }
 
+  /** 导出当前文档为自包含 HTML（M4） */
+  async function actionExportHtml(): Promise<void> {
+    const t = tabs.active;
+    if (!t) return;
+    const baseName = t.title.replace(/\.(md|markdown)$/i, '') || '未命名';
+    const html = markdownToStandaloneHtml(getActiveText(), baseName);
+    const path = await pickSaveHtmlPath(`${baseName}.html`);
+    if (!path) return;
+    try {
+      await writeTextFile(path, html);
+      status.show(`已导出：${path.split('/').pop()}`);
+    } catch (e) {
+      status.show(`导出失败：${String(e)}`);
+    }
+  }
+
   /** 关闭标签页（经未保存保护） */
   function requestCloseTab(id: string): void {
     const t = tabs.tabs.find((x) => x.id === id);
@@ -153,6 +175,16 @@
     if (e.shiftKey && e.key.toLowerCase() === 'o') {
       e.preventDefault();
       void workspace.pickAndOpen(); // 打开文件夹工作区
+      return;
+    }
+    if (e.shiftKey && e.key.toLowerCase() === 'e') {
+      e.preventDefault();
+      void actionExportHtml();
+      return;
+    }
+    if (e.shiftKey && e.key.toLowerCase() === 'f') {
+      e.preventDefault();
+      searchOpen = true;
       return;
     }
 
@@ -207,7 +239,7 @@
 <svelte:window onkeydown={onKeydown} />
 
 <div class="app-shell">
-  <TitleBar />
+  <TitleBar onOpenSettings={() => (settingsOpen = true)} onExport={() => void actionExportHtml()} />
   <TabBar onRequestClose={requestCloseTab} />
 
   <div class="app-body">
@@ -227,6 +259,9 @@
   onconfirm={confirmProceed}
   oncancel={confirmCancel}
 />
+
+<SettingsDialog open={settingsOpen} onclose={() => (settingsOpen = false)} />
+<SearchDialog open={searchOpen} onclose={() => (searchOpen = false)} />
 
 <style>
   .app-shell {

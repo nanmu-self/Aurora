@@ -25,6 +25,7 @@ pub fn run() {
             workspace::delete_entry,
             workspace::path_exists,
             workspace::allow_workspace_assets,
+            workspace::search_workspace,
             watch::watch_workspace,
             watch::unwatch_all
         ])
