@@ -16,8 +16,8 @@
   import { getActiveText } from '$lib/editor/bridge';
   import { runEditorAction } from '$lib/editor/actions';
   import { markdownToStandaloneHtml } from '$lib/markdown/export';
-  import { exitApp, greet, syncViewMenu } from '$lib/commands';
-  import { pickOpenPath, pickSaveHtmlPath, writeTextFile } from '$lib/commands/fs';
+  import { exitApp, greet, startupFiles, syncViewMenu } from '$lib/commands';
+  import { pickOpenPath, pickSaveHtmlPath, writeTextFile, allowWorkspaceAssets } from '$lib/commands/fs';
   import { initAutosave, cancelAutosave } from '$lib/editor/autosave';
   import { outline } from '$lib/stores/outline.svelte';
   import { tabs } from '$lib/stores/tabs.svelte';
@@ -109,6 +109,31 @@
 
   function actionNew(): void {
     tabs.newUntitled();
+  }
+
+  /* ---------------- 系统打开请求（Finder 双击 / Dock 拖拽 / 带参启动） ---------------- */
+
+  const DOC_EXT_RE = /\.(md|markdown|mdown|mkd)$/i;
+
+  /** 打开外部传入的路径；支持多选，带未保存保护（确认后继续处理剩余的） */
+  async function openExternalPaths(paths: string[]): Promise<void> {
+    const files = [...new Set(paths)].filter((p) => DOC_EXT_RE.test(p));
+    if (files.length === 0) return;
+
+    // 单文件模式下放行所在目录：预览里的相对路径图片经 asset 协议加载
+    await Promise.allSettled(files.map((f) => allowWorkspaceAssets(dirname(f))));
+
+    for (const p of files) {
+      const existing = tabs.tabs.find((t) => t.path === p);
+      if (!existing && tabs.active?.dirty) {
+        // 队列式保护：确认后从当前文件重新开始，避免覆盖 pendingAction
+        guard(() => void openExternalPaths([p]), '打开外部文件', tabs.active!.title);
+        return;
+      }
+      await tabs.openPath(p).catch((e) => {
+        status.show(`打开失败：${fmtErr(e)}`);
+      });
+    }
   }
 
   async function actionOpen(): Promise<void> {
@@ -306,11 +331,23 @@
   }
 
   onMount(() => {
-    let unlisten: (() => void) | undefined;
+    let unlistenMenu: (() => void) | undefined;
+    let unlistenFiles: (() => void) | undefined;
     listen<string>('menu', (e) => handleMenu(e.payload)).then((u) => {
-      unlisten = u;
+      unlistenMenu = u;
     });
-    return () => unlisten?.();
+    // 运行中：Finder 双击文档 / 拖到 Dock 图标
+    listen<string[]>('opened-files', (e) => void openExternalPaths(e.payload)).then((u) => {
+      unlistenFiles = u;
+    });
+    // 冷启动：先拉取启动前累积的打开请求（可能早于监听器就绪）
+    startupFiles()
+      .then((files) => void openExternalPaths(files))
+      .catch(() => {});
+    return () => {
+      unlistenMenu?.();
+      unlistenFiles?.();
+    };
   });
 
   /* ---------------- 全局快捷键 ---------------- */

@@ -39,6 +39,15 @@
       "icons/128x128@2x.png",
       "icons/icon.icns",
       "icons/icon.ico"
+    ],
+    "fileAssociations": [
+      {
+        "ext": ["md", "markdown", "mdown", "mkd"],
+        "name": "Markdown 文档",
+        "description": "Markdown 文本文件（Aurora）",
+        "role": "Editor",
+        "rank": "Default"
+      }
     ]
   }
 }

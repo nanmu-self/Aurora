@@ -21,3 +21,8 @@ export function exitApp(): Promise<void> {
 export function syncViewMenu(mode: string, sidebarVisible: boolean): Promise<void> {
   return invoke('sync_view_menu', { mode, sidebarVisible });
 }
+
+/** 拉取累积的外部打开请求（带文档启动 / Finder 双击 / Dock 拖拽）。 */
+export function startupFiles(): Promise<string[]> {
+  return invoke('startup_files');
+}

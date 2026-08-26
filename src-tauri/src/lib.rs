@@ -4,7 +4,12 @@ mod menu;
 mod watch;
 mod workspace;
 
-use tauri::Emitter;
+use std::sync::Mutex;
+use tauri::{Emitter, Manager, RunEvent};
+
+/// 单例应用状态：缓存“带文件启动 / 运行中被要求打开”的文件路径。
+/// 冷启动时前端可能尚未挂载监听，先落盘在此处供其就绪后拉取。
+struct OpenedFiles(Mutex<Vec<String>>);
 
 #[tauri::command]
 fn greet(name: &str) -> String {
@@ -15,6 +20,38 @@ fn greet(name: &str) -> String {
 #[tauri::command]
 fn exit_app(app: tauri::AppHandle) {
     app.exit(0);
+}
+
+/// 前端就绪后拉取累积的外部打开请求（不消费，openPath 侧按路径去重）。
+#[tauri::command]
+fn startup_files(app: tauri::AppHandle) -> Vec<String> {
+    app.try_state::<OpenedFiles>()
+        .map(|s| s.0.lock().expect("opened files poisoned").clone())
+        .unwrap_or_default()
+}
+
+/// 启动参数中的文档路径（macOS 双击文档冷启动 / Dock 拖拽等）。
+fn collect_arg_files() -> Vec<String> {
+    use std::path::{Path, PathBuf};
+    const EXT: [&str; 4] = ["md", "markdown", "mdown", "mkd"];
+    let mut out = Vec::new();
+    for arg in std::env::args_os().skip(1) {
+        // 跳过 macOS 的 -psn_* 与常规 CLI 开关
+        let s = arg.to_string_lossy();
+        if s.starts_with('-') || Path::new(s.as_ref()).extension().is_none_or(|e| {
+            !EXT.contains(&e.to_ascii_lowercase().to_string_lossy().as_ref())
+        }) {
+            continue;
+        }
+        let p = PathBuf::from(&arg);
+        // absolute() 不依赖 cwd 解析盘符/前缀问题；存在性检查留给读取阶段报错
+        match std::path::absolute(p) {
+            Ok(abs) => out.push(abs.to_string_lossy().into_owned()),
+            Err(_) => out.push(s.into_owned()),
+        }
+    }
+    out.dedup();
+    out
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -32,6 +69,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             greet,
             exit_app,
+            startup_files,
             menu::sync_view_menu,
             fs::read_text_file,
             fs::write_text_file,
@@ -47,6 +85,31 @@ pub fn run() {
             watch::watch_workspace,
             watch::unwatch_all
         ])
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        .setup(|app| {
+            app.manage(OpenedFiles(Mutex::new(collect_arg_files())));
+            Ok(())
+        })
+        .build(tauri::generate_context!())
+        .expect("error while building tauri application")
+        .run(|app, event| {
+            // Finder 双击文档 / 拖到 Dock 图标：系统把路径交给我们（macOS openDocument 事件链）
+            if let RunEvent::Opened { urls } = event {
+                let paths: Vec<String> = urls
+                    .iter()
+                    .filter_map(|u| u.to_file_path().ok())
+                    .map(|p| p.to_string_lossy().into_owned())
+                    .collect();
+                if paths.is_empty() {
+                    return;
+                }
+                if let Some(state) = app.try_state::<OpenedFiles>() {
+                    state
+                        .0
+                        .lock()
+                        .expect("opened files poisoned")
+                        .extend(paths.clone());
+                }
+                let _ = app.emit("opened-files", paths);
+            }
+        });
 }
