@@ -11,3 +11,8 @@ import { invoke } from '@tauri-apps/api/core';
 export function greet(name: string): Promise<string> {
   return invoke('greet', { name });
 }
+
+/** 退出应用（仅在「未保存保护」确认之后调用）。 */
+export function exitApp(): Promise<void> {
+  return invoke('exit_app');
+}

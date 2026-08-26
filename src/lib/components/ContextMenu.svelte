@@ -1,4 +1,7 @@
 <script lang="ts">
+  import { onMount } from 'svelte';
+  import { CLOSE_MENUS_EVENT } from './menuBus';
+
   export interface MenuItem {
     label: string;
     danger?: boolean;
@@ -39,9 +42,16 @@ function onWindowClick(): void {
 }
 
 function onWindowContextmenu(e: MouseEvent): void {
-  if (e.defaultPrevented) return; // 树上已开启新菜单
+  if (e.defaultPrevented) return; // 已有新菜单接手
   close();
 }
+
+/** 其他位置打开新菜单时，通知本实例关闭（避免两个菜单同时浮着） */
+onMount(() => {
+  const onCloseAll = (): void => close();
+  window.addEventListener(CLOSE_MENUS_EVENT, onCloseAll);
+  return () => window.removeEventListener(CLOSE_MENUS_EVENT, onCloseAll);
+});
 
 function onKeydown(e: KeyboardEvent): void {
   if (e.key === 'Escape') close();

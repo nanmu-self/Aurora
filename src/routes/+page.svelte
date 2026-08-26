@@ -11,15 +11,18 @@
   import ConfirmDialog from '$lib/components/ConfirmDialog.svelte';
   import SettingsDialog from '$lib/components/SettingsDialog.svelte';
   import SearchDialog from '$lib/components/SearchDialog.svelte';
+  import GlobalContextMenu from '$lib/components/GlobalContextMenu.svelte';
   import { getActiveText } from '$lib/editor/bridge';
+  import { runEditorAction } from '$lib/editor/actions';
   import { markdownToStandaloneHtml } from '$lib/markdown/export';
-  import { greet } from '$lib/commands';
+  import { exitApp, greet } from '$lib/commands';
   import { pickOpenPath, pickSaveHtmlPath, writeTextFile } from '$lib/commands/fs';
   import { initAutosave, cancelAutosave } from '$lib/editor/autosave';
   import { outline } from '$lib/stores/outline.svelte';
   import { tabs } from '$lib/stores/tabs.svelte';
   import { workspace } from '$lib/stores/workspace.svelte';
   import { status } from '$lib/stores/editorStatus.svelte';
+  import { settings } from '$lib/stores/settings.svelte';
   import { dirname } from '$lib/path';
 
   /* ---------------- IPC 冒烟（M0） + M3 派生服务 ---------------- */
@@ -165,6 +168,88 @@
     if (tabs.activeId) requestCloseTab(tabs.activeId);
   }
 
+  /* ---------------- 菜单栏（macOS 中文菜单）事件 ---------------- */
+
+  /** 退出：先过未保存保护，确认后再确定性退出进程 */
+  function requestQuit(): void {
+    const dirty = tabs.tabs.filter((t) => t.dirty);
+    if (dirty.length === 0) {
+      void exitApp();
+      return;
+    }
+    confirmMessage =
+      dirty.length === 1
+        ? `「${dirty[0].title}」有未保存的更改，退出将丢失这些修改。`
+        : `${dirty.length} 个标签页有未保存的更改，退出将丢失这些修改。`;
+    pendingAction = () => void exitApp();
+    confirmOpen = true;
+  }
+
+  function handleMenu(id: string): void {
+    // 模态框（设置/全局搜索/确认框）打开时，格式与查找类动作不应落到背后的编辑器上
+    const modalOpen = settingsOpen || searchOpen || confirmOpen;
+    if (modalOpen && (id.startsWith('fmt.') || id === 'edit.find')) return;
+
+    switch (id) {
+      case 'app.settings':
+        settingsOpen = true;
+        break;
+      case 'app.quit':
+        requestQuit();
+        break;
+      case 'file.new':
+        actionNew();
+        break;
+      case 'file.open':
+        void actionOpen();
+        break;
+      case 'file.workspace':
+        void workspace.pickAndOpen();
+        break;
+      case 'file.save':
+        void actionSave();
+        break;
+      case 'file.save_as':
+        void actionSaveAs().catch((err) => console.warn('[aurora]', err));
+        break;
+      case 'file.export':
+        void actionExportHtml();
+        break;
+      case 'file.close_tab':
+        closeActiveTab();
+        break;
+      case 'edit.find':
+        runEditorAction('find');
+        break;
+      case 'edit.search_workspace':
+        searchOpen = true;
+        break;
+      case 'fmt.bold':
+        runEditorAction('bold');
+        break;
+      case 'fmt.italic':
+        runEditorAction('italic');
+        break;
+      case 'fmt.code':
+        runEditorAction('code');
+        break;
+      case 'fmt.link':
+        runEditorAction('link');
+        break;
+      case 'view.theme':
+        settings.toggle();
+        break;
+    }
+  }
+
+  onMount(() => {
+    let unlisten: (() => void) | undefined;
+    listen<string>('menu', (e) => handleMenu(e.payload)).then((u) => {
+      unlisten = u;
+    });
+    return () => unlisten?.();
+  });
+
   /* ---------------- 全局快捷键 ---------------- */
 
   function onKeydown(e: KeyboardEvent): void {
@@ -262,6 +347,7 @@
 
 <SettingsDialog open={settingsOpen} onclose={() => (settingsOpen = false)} />
 <SearchDialog open={searchOpen} onclose={() => (searchOpen = false)} />
+<GlobalContextMenu />
 
 <style>
   .app-shell {

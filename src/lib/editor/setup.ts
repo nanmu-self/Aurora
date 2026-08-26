@@ -178,11 +178,19 @@ function insertLink(view: EditorView): boolean {
   return true;
 }
 
+/** Markdown 标记命令（供菜单栏 / 右键菜单复用，见 editor/actions.ts） */
+export const mdCommands = {
+  bold: wrapSelection('**'),
+  italic: wrapSelection('*'),
+  code: wrapSelection('`'),
+  link: insertLink,
+};
+
 const mdEditKeymap: KeyBinding[] = [
-  { key: 'Mod-b', run: wrapSelection('**') },
-  { key: 'Mod-i', run: wrapSelection('*') },
-  { key: 'Mod-e', run: wrapSelection('`') },
-  { key: 'Mod-k', run: insertLink },
+  { key: 'Mod-b', run: mdCommands.bold },
+  { key: 'Mod-i', run: mdCommands.italic },
+  { key: 'Mod-e', run: mdCommands.code },
+  { key: 'Mod-k', run: mdCommands.link },
 ];
 
 /**
