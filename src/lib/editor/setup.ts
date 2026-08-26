@@ -36,6 +36,7 @@ const auroraTheme = EditorView.theme({
   '.cm-scroller': {
     fontFamily: 'var(--font-mono)',
     overflow: 'auto',
+    overscrollBehavior: 'contain',
   },
   '.cm-content': {
     caretColor: 'var(--accent)',

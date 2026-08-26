@@ -59,6 +59,7 @@
   }
 
   .editor-host {
+    position: relative; /* CM6 视图绝对定位填满，彻底摆脱百分比链 */
     flex: 1;
     min-height: 0;
     overflow: hidden;
@@ -66,6 +67,7 @@
   }
 
   .editor-host :global(.cm-editor) {
-    height: 100%;
+    position: absolute;
+    inset: 0;
   }
 </style>

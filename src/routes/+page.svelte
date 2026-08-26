@@ -278,11 +278,16 @@
     min-height: 0;
   }
 
-  /* 编辑器 | 预览 分栏；可拖拽分割条在 M3 打磨 */
+  /* 编辑器 | 预览 分栏。
+   * 关键：行必须钉死为容器高（minmax(0,1fr)）。
+   * 若用隐式 auto 行，行高会被内容撑开，子项的 height:100% 循环解析
+   * 退化为内容高 → 内部滚动容器永不溢出 → 文档无法滚动（v0.1 实测踩坑）。 */
   .split {
     display: grid;
     grid-template-columns: 1fr 1fr;
+    grid-template-rows: minmax(0, 1fr);
     flex: 1;
     min-width: 0;
+    min-height: 0;
   }
 </style>

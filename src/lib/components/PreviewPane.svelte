@@ -10,6 +10,7 @@
 <style>
   .preview-pane {
     height: 100%;
+    min-height: 0;
     min-width: 0;
     background: var(--bg-content);
   }

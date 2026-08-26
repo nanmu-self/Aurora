@@ -163,6 +163,7 @@
   .preview-scroll {
     height: 100%;
     overflow-y: auto;
+    overscroll-behavior: contain; /* WKWebView 下防止滚动链接到外层 */
     background: var(--bg-content);
   }
 
