@@ -5,7 +5,10 @@ mod watch;
 mod workspace;
 
 use std::sync::Mutex;
-use tauri::{Emitter, Manager, RunEvent};
+use tauri::{Emitter, Manager};
+// RunEvent::Opened 仅在 macOS/iOS/Android 上存在，故这里按平台裁剪导入。
+#[cfg(any(target_os = "macos", target_os = "ios", target_os = "android"))]
+use tauri::RunEvent;
 
 /// 单例应用状态：缓存“带文件启动 / 运行中被要求打开”的文件路径。
 /// 冷启动时前端可能尚未挂载监听，先落盘在此处供其就绪后拉取。
@@ -91,25 +94,31 @@ pub fn run() {
         })
         .build(tauri::generate_context!())
         .expect("error while building tauri application")
-        .run(|app, event| {
-            // Finder 双击文档 / 拖到 Dock 图标：系统把路径交给我们（macOS openDocument 事件链）
-            if let RunEvent::Opened { urls } = event {
-                let paths: Vec<String> = urls
-                    .iter()
-                    .filter_map(|u| u.to_file_path().ok())
-                    .map(|p| p.to_string_lossy().into_owned())
-                    .collect();
-                if paths.is_empty() {
-                    return;
+        .run(|_app, event| {
+            // Finder 双击文档 / 拖到 Dock 图标：系统把路径交给我们（macOS openDocument 事件链）。
+            // 注意：RunEvent::Opened 仅在 macOS/iOS/Android 上存在（tauri 按 cfg 裁剪），
+            // 因此在其它平台（如 Windows）必须用同样的 cfg 门控，否则无法编译。
+            match event {
+                #[cfg(any(target_os = "macos", target_os = "ios", target_os = "android"))]
+                RunEvent::Opened { urls } => {
+                    let paths: Vec<String> = urls
+                        .iter()
+                        .filter_map(|u| u.to_file_path().ok())
+                        .map(|p| p.to_string_lossy().into_owned())
+                        .collect();
+                    if paths.is_empty() {
+                        return;
+                    }
+                    if let Some(state) = _app.try_state::<OpenedFiles>() {
+                        state
+                            .0
+                            .lock()
+                            .expect("opened files poisoned")
+                            .extend(paths.clone());
+                    }
+                    let _ = _app.emit("opened-files", paths);
                 }
-                if let Some(state) = app.try_state::<OpenedFiles>() {
-                    state
-                        .0
-                        .lock()
-                        .expect("opened files poisoned")
-                        .extend(paths.clone());
-                }
-                let _ = app.emit("opened-files", paths);
+                _ => {}
             }
         });
 }
