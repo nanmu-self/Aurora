@@ -2,6 +2,7 @@
   import { onMount } from 'svelte';
   import { getVersion } from '@tauri-apps/api/app';
   import { settings, type ThemeMode } from '$lib/stores/settings.svelte';
+  import { inTauri } from '$lib/platform';
 
   interface Props {
     open: boolean;
@@ -10,12 +11,36 @@
 
   let { open, onclose }: Props = $props();
 
-  let appVersion = $state('');
-  onMount(() => {
-    getVersion()
-      .then((v) => (appVersion = v ?? ''))
-      .catch(() => {});
+  $effect(() => {
+    if (open) {
+      liveFontSize = settings.editorFontSize;
+    }
   });
+
+  let appVersion = $state('');
+  /** 拖动中的字号：即时显示，节流写入 store */
+  let liveFontSize = $state<number | null>(null);
+  let rafId = 0;
+
+  onMount(() => {
+    if (inTauri()) {
+      getVersion()
+        .then((v) => (appVersion = v ?? ''))
+        .catch(() => {});
+    }
+    return () => cancelAnimationFrame(rafId);
+  });
+
+  /** 节流到每帧一次写入 store——预览跟手但不超 60fps */
+  function flushFontSize(): void {
+    if (rafId) return;
+    rafId = requestAnimationFrame(() => {
+      rafId = 0;
+      if (liveFontSize !== null) {
+        settings.update({ editorFontSize: liveFontSize });
+      }
+    });
+  }
 
   const themeOptions: { id: ThemeMode; label: string }[] = [
     { id: 'system', label: '跟随系统' },
@@ -70,14 +95,14 @@
 
       <!-- 编辑器字号 -->
       <section>
-        <p class="label">编辑器字号 <span class="value">{settings.editorFontSize}px</span></p>
+        <p class="label">编辑器字号 <span class="value">{liveFontSize ?? settings.editorFontSize}px</span></p>
         <input
           type="range"
           min="12"
           max="20"
           step="1"
-          bind:value={settings.editorFontSize}
-          oninput={() => settings.update({ editorFontSize: settings.editorFontSize })}
+          bind:value={liveFontSize}
+          oninput={() => flushFontSize()}
         />
       </section>
 

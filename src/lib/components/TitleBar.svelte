@@ -2,13 +2,18 @@
   import { settings } from '$lib/stores/settings.svelte';
   import { tabs } from '$lib/stores/tabs.svelte';
   import { layout, type ViewMode } from '$lib/stores/layout.svelte';
+  import MenuBar from './MenuBar.svelte';
+  import { isMac } from '$lib/platform';
+
+  const isMacPlatform = $derived(isMac());
 
   interface Props {
     onOpenSettings: () => void;
     onExport: () => void;
+    onMenu: (id: string) => void;
   }
 
-  let { onOpenSettings, onExport }: Props = $props();
+  let { onOpenSettings, onExport, onMenu }: Props = $props();
 
   const isDark = $derived(settings.resolved === 'dark');
 
@@ -26,7 +31,9 @@
   - Windows/Linux 的自定义窗口控制按钮在后续里程碑按需补充。
 -->
 <header class="titlebar">
-  <div class="traffic-spacer" aria-hidden="true"></div>
+  {#if isMacPlatform}
+    <div class="traffic-spacer" aria-hidden="true"></div>
+  {/if}
 
   <button
     class="icon-btn"
@@ -44,6 +51,8 @@
       {/if}
     </svg>
   </button>
+
+  <MenuBar {onMenu} />
 
   <div
     class="title"
@@ -131,7 +140,7 @@
     border-bottom: 1px solid var(--border-subtle);
   }
 
-  /* macOS Overlay 模式下红绿灯悬浮于此区域之上 */
+  /* macOS Overlay 模式下红绿灯悬浮于此区域之上；Windows/Linux 不渲染 */
   .traffic-spacer {
     width: 76px;
     flex-shrink: 0;

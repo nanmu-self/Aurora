@@ -127,6 +127,18 @@
     flex-shrink: 0;
     width: var(--sidebar-width);
     background: var(--bg-chrome);
+    overflow: hidden;
+    transition: width var(--dur-med) var(--ease-out);
+  }
+
+  :global(.sidebar-collapsed) .sidebar {
+    width: 0;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .sidebar {
+      transition: none;
+    }
   }
 
   .tabs {

@@ -6,6 +6,7 @@
 //! - 文件类动作是自定义项，通过 `on_menu_event` 转发到前端已有的处理函数；
 //! - 退出用自定义项而非预定义 quit，确保一定经过前端的「未保存保护」确认流程。
 
+#[allow(unused_imports)]
 use tauri::menu::{CheckMenuItem, Menu, MenuItem, PredefinedMenuItem, Submenu};
 use tauri::{AppHandle, Manager, Wry};
 
@@ -34,6 +35,7 @@ pub fn sync_view_menu(app: AppHandle, mode: String, sidebar_visible: bool) -> Re
     Ok(())
 }
 
+#[allow(dead_code)]
 pub fn build(app: &AppHandle) -> tauri::Result<Menu<Wry>> {
     /* ---------------- Aurora（应用菜单） ---------------- */
     let about = PredefinedMenuItem::about(app, Some("关于 Aurora"), None)?;

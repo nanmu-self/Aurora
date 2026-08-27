@@ -14,10 +14,11 @@
   import GlobalContextMenu from '$lib/components/GlobalContextMenu.svelte';
   import Resizer from '$lib/components/Resizer.svelte';
   import { getActiveText } from '$lib/editor/bridge';
-  import { runEditorAction } from '$lib/editor/actions';
+  import { runEditorAction, selectedText, deleteSelection } from '$lib/editor/actions';
   import { markdownToStandaloneHtml } from '$lib/markdown/export';
   import { exitApp, greet, startupFiles, syncViewMenu } from '$lib/commands';
   import { pickOpenPath, pickSaveHtmlPath, writeTextFile, allowWorkspaceAssets } from '$lib/commands/fs';
+  import { inTauri } from '$lib/platform';
   import { initAutosave, cancelAutosave } from '$lib/editor/autosave';
   import { outline } from '$lib/stores/outline.svelte';
   import { tabs } from '$lib/stores/tabs.svelte';
@@ -31,6 +32,12 @@
   /* ---------------- IPC 冒烟（M0） + M3 派生服务 ---------------- */
 
   onMount(() => {
+    // 浏览器调试环境（非 Tauri）没有 IPC，跳过全部 Tauri 调用，避免 transformCallback 等报错。
+    if (!inTauri()) {
+      outline.init(); // 大纲 + 字数统计不依赖 IPC
+      return;
+    }
+
     void (async () => {
       try {
         console.info('[aurora] ipc ok:', await greet('aurora'));
@@ -165,6 +172,42 @@
     return tabs.saveActiveAs();
   }
 
+  async function actionCopy(): Promise<void> {
+    const text = selectedText();
+    if (text) {
+      try {
+        const { writeText } = await import('@tauri-apps/plugin-clipboard-manager');
+        await writeText(text);
+      } catch {
+        // fallback: 浏览器环境或插件不可用
+        await navigator.clipboard.writeText(text).catch(() => {});
+      }
+    }
+  }
+
+  async function actionCut(): Promise<void> {
+    await actionCopy();
+    deleteSelection();
+  }
+
+  async function actionPaste(): Promise<void> {
+    try {
+      const { readText } = await import('@tauri-apps/plugin-clipboard-manager');
+      const text = await readText();
+      if (text) {
+        const { insertAtCursor } = await import('$lib/editor/bridge');
+        insertAtCursor(text);
+      }
+    } catch {
+      // fallback: 浏览器环境或插件不可用
+      const text = await navigator.clipboard.readText().catch(() => null);
+      if (text) {
+        const { insertAtCursor } = await import('$lib/editor/bridge');
+        insertAtCursor(text);
+      }
+    }
+  }
+
   /** 导出当前文档为自包含 HTML（M4） */
   async function actionExportHtml(): Promise<void> {
     const t = tabs.active;
@@ -253,9 +296,9 @@
   }
 
   function handleMenu(id: string): void {
-    // 模态框（设置/全局搜索/确认框）打开时，格式与查找类动作不应落到背后的编辑器上
+    // 模态框（设置/全局搜索/确认框）打开时，编辑类动作不应落到背后的编辑器上
     const modalOpen = settingsOpen || searchOpen || confirmOpen;
-    if (modalOpen && (id.startsWith('fmt.') || id === 'edit.find')) return;
+    if (modalOpen && (id.startsWith('fmt.') || id.startsWith('edit.'))) return;
 
     switch (id) {
       case 'app.settings':
@@ -284,6 +327,24 @@
         break;
       case 'file.close_tab':
         closeActiveTab();
+        break;
+      case 'edit.undo':
+        runEditorAction('undo');
+        break;
+      case 'edit.redo':
+        runEditorAction('redo');
+        break;
+      case 'edit.cut':
+        void actionCut();
+        break;
+      case 'edit.copy':
+        void actionCopy();
+        break;
+      case 'edit.paste':
+        void actionPaste();
+        break;
+      case 'edit.select_all':
+        runEditorAction('selectAll');
         break;
       case 'edit.find':
         runEditorAction('find');
@@ -327,10 +388,21 @@
       case 'view.zoom.reset':
         layout.resetZoom();
         break;
+      case 'view.fullscreen':
+        void getCurrentWindow().toggleMaximize();
+        break;
+      case 'window.minimize':
+        void getCurrentWindow().minimize();
+        break;
+      case 'window.close':
+        requestQuit();
+        break;
     }
   }
 
   onMount(() => {
+    if (!inTauri()) return;
+
     let unlistenMenu: (() => void) | undefined;
     let unlistenFiles: (() => void) | undefined;
     listen<string>('menu', (e) => handleMenu(e.payload)).then((u) => {
@@ -429,6 +501,8 @@
   /* ---------------- 关闭窗口未保存保护 ---------------- */
 
   onMount(() => {
+    if (!inTauri()) return;
+
     let unlisten: (() => void) | undefined;
     getCurrentWindow()
       .onCloseRequested(async (event) => {
@@ -459,13 +533,13 @@
 
 <svelte:window onkeydown={onKeydown} />
 
-<div class="app-shell" style:--sidebar-width={`${layout.sidebarWidth}px`} style:--preview-zoom={layout.previewZoom}>
-  <TitleBar onOpenSettings={() => (settingsOpen = true)} onExport={() => void actionExportHtml()} />
+<div class="app-shell" class:sidebar-collapsed={layout.sidebarCollapsed} style:--sidebar-width={`${layout.sidebarWidth}px`} style:--preview-zoom={layout.previewZoom}>
+  <TitleBar onOpenSettings={() => (settingsOpen = true)} onExport={() => void actionExportHtml()} onMenu={handleMenu} />
   <TabBar onRequestClose={requestCloseTab} />
 
   <div class="app-body" bind:this={bodyEl}>
+    <Sidebar />
     {#if !layout.sidebarCollapsed}
-      <Sidebar />
       <Resizer
         label="调整侧栏宽度"
         onmove={onSidebarDrag}

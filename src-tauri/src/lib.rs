@@ -5,7 +5,9 @@ mod watch;
 mod workspace;
 
 use std::sync::Mutex;
-use tauri::{Emitter, Manager};
+use tauri::Manager;
+#[cfg(target_os = "macos")]
+use tauri::Emitter;
 // RunEvent::Opened 仅在 macOS/iOS/Android 上存在，故这里按平台裁剪导入。
 #[cfg(any(target_os = "macos", target_os = "ios", target_os = "android"))]
 use tauri::RunEvent;
@@ -59,16 +61,34 @@ fn collect_arg_files() -> Vec<String> {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    tauri::Builder::default()
+    #[cfg(debug_assertions)]
+    let devtools = tauri_plugin_devtools::init();
+
+    let mut builder = tauri::Builder::default();
+    builder = builder
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_clipboard_manager::init())
-        .plugin(tauri_plugin_opener::init())
-        // 中文菜单栏（替换 Tauri 默认英文菜单）
-        .menu(|app| menu::build(app))
-        // 自定义菜单项统一转发给前端处理（预定义项不会走到这里）
-        .on_menu_event(|app, event| {
-            let _ = app.emit("menu", event.id().0.as_str());
-        })
+        .plugin(tauri_plugin_opener::init());
+
+    #[cfg(debug_assertions)]
+    {
+        builder = builder.plugin(devtools);
+    }
+
+    // macOS 使用原生菜单栏（位于屏幕顶部，与系统完美融合）；
+    // Windows/Linux 不设置原生菜单，改为前端渲染自定义菜单栏（避免白底独立一行）。
+    #[cfg(target_os = "macos")]
+    {
+        builder = builder
+            // 中文菜单栏（替换 Tauri 默认英文菜单）
+            .menu(|app| menu::build(app))
+            // 自定义菜单项统一转发给前端处理（预定义项不会走到这里）
+            .on_menu_event(|app, event| {
+                let _ = app.emit("menu", event.id().0.as_str());
+            });
+    }
+
+    builder
         .invoke_handler(tauri::generate_handler![
             greet,
             exit_app,
