@@ -41,6 +41,9 @@
       "icons/icon.icns",
       "icons/icon.ico"
     ],
+    "resources": [
+      "icons/icon_md.ico"
+    ],
     "fileAssociations": [
       {
         "ext": ["md", "markdown", "mdown", "mkd"],
