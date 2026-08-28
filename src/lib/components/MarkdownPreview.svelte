@@ -147,6 +147,15 @@
    * - http(s) / mailto / data / javascript / asset：放行浏览器默认；
    * - 不存在或失败：在状态栏提示，绝不导航离开。
    */
+  /** URL 解码片段标识，兼容 remark 对中文 / 特殊字符的 percent-encoding */
+  function safeDecode(s: string): string {
+    try {
+      return decodeURIComponent(s);
+    } catch {
+      return s; // 编码不完整时回退原文
+    }
+  }
+
   function handleClick(e: MouseEvent): void {
     const target = e.target;
     if (!(target instanceof HTMLElement)) return;
@@ -169,7 +178,7 @@
     // 1. 纯同文档锚点（`#...`）：在容器内找对应元素并滚动
     if (pathPart === '#' && fragment) {
       e.preventDefault();
-      const el = container.querySelector(`#${fragment}`) as HTMLElement | null;
+      const el = container.querySelector(`#${safeDecode(fragment)}`) as HTMLElement | null;
       if (el) {
         scrollEl.scrollTo({ top: el.offsetTop - 20, behavior: 'smooth' });
       }
@@ -199,7 +208,7 @@
         // 跨文档锚点：文件打开后新渲染完成，尝试滚动到目标元素
         if (fragment) {
           setTimeout(() => {
-            const targetEl = container.querySelector(`#${fragment}`) as HTMLElement | null;
+            const targetEl = container.querySelector(`#${safeDecode(fragment)}`) as HTMLElement | null;
             if (targetEl) {
               scrollEl.scrollTo({ top: targetEl.offsetTop - 20, behavior: 'smooth' });
             }
