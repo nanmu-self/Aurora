@@ -141,10 +141,11 @@
 
   /**
    * 预览区链接点击委托：
+   * - 同文档 `#id` 锚点：在容器内找对应元素并滚动到视口；
+   * - 跨文档 `file.md#section`：解析路径打开文件，再尝试滚动到目标锚点；
    * - 相对路径 / `/foo` 样式：按当前文件目录 / 工作区根解析为绝对路径，走 tabs.openPath；
-   * - http(s) / mailto / data / javascript / asset：放行浏览器默认（外部链接会跳浏览器，mailto 同理）；
-   * - 纯锚点 `#...`：交给编辑器的 outline / jump 能力（当前静默，未来可接大纲跳转）；
-   * - 不存在或失败：在状态栏提示，绝不导航离开，避免把整个页面带到 404 而无法退出。
+   * - http(s) / mailto / data / javascript / asset：放行浏览器默认；
+   * - 不存在或失败：在状态栏提示，绝不导航离开。
    */
   function handleClick(e: MouseEvent): void {
     const target = e.target;
@@ -156,32 +157,59 @@
     if (!href) return;
     const hrefTrim = href.trim();
 
-    // 1. 放行纯锚点（交给大纲 / 未来跳转）
-    if (hrefTrim.startsWith('#')) return;
+    // 拆分出路径部分和锚点部分：`path/to/file.md#section` → [path, section]
+    let pathPart = hrefTrim;
+    let fragment: string | null = null;
+    const hashIdx = hrefTrim.indexOf('#');
+    if (hashIdx !== -1) {
+      pathPart = hrefTrim.slice(0, hashIdx) || '#';
+      fragment = hrefTrim.slice(hashIdx + 1) || null;
+    }
+
+    // 1. 纯同文档锚点（`#...`）：在容器内找对应元素并滚动
+    if (pathPart === '#' && fragment) {
+      e.preventDefault();
+      const el = container.querySelector(`#${fragment}`) as HTMLElement | null;
+      if (el) {
+        scrollEl.scrollTo({ top: el.offsetTop - 20, behavior: 'smooth' });
+      }
+      return;
+    }
 
     // 2. 放行浏览器应该接管的外部协议
-    if (/^(https?|mailto|data|javascript|tel:|geo:|asset:|blob:|#)/i.test(hrefTrim)) {
+    if (/^(https?|mailto|data|javascript|tel:|geo:|asset:|blob:|#)/i.test(pathPart)) {
       return;
     }
 
     e.preventDefault();
     const activePath = tabs.active?.path;
-    if (!activePath) return; // 无上下文不处理
+    if (!activePath) return;
 
     let abs: string;
-    if (hrefTrim.startsWith('/')) {
-      // `/foo/bar.md` → 以工作区根为基准
-      abs = workspace.root ? join(workspace.root, hrefTrim) : hrefTrim;
+    if (pathPart.startsWith('/')) {
+      abs = workspace.root ? join(workspace.root, pathPart) : pathPart;
     } else {
-      // `other/API_sign.md` / `../foo.md` / `./bar.md` → 以当前文档所在目录为基准
-      abs = join(dirname(activePath), hrefTrim);
+      abs = join(dirname(activePath), pathPart);
     }
     abs = abs.replace(/\/$/, '');
 
-    tabs.openPath(abs).catch((e: unknown) => {
-      const msg = typeof e === 'string' ? e : e instanceof Error ? e.message : String(e);
-      status.show(`打开失败：${abs}（${msg}）`);
-    });
+    tabs
+      .openPath(abs)
+      .then(() => {
+        // 跨文档锚点：文件打开后新渲染完成，尝试滚动到目标元素
+        if (fragment) {
+          setTimeout(() => {
+            const targetEl = container.querySelector(`#${fragment}`) as HTMLElement | null;
+            if (targetEl) {
+              scrollEl.scrollTo({ top: targetEl.offsetTop - 20, behavior: 'smooth' });
+            }
+          }, 50);
+        }
+      })
+      .catch((e: unknown) => {
+        const msg = typeof e === 'string' ? e : e instanceof Error ? e.message : String(e);
+        status.show(`打开失败：${abs}${fragment ? '#' + fragment : ''}（${msg}）`);
+      });
   }
 
   onMount(() => {

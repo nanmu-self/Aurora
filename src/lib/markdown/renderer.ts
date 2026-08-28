@@ -77,6 +77,55 @@ function resolveImageSrc(src: string, ctx: RenderCtx): string | null {
   return abs ? convertFileSrc(abs) : null;
 }
 
+/**
+ * 最小 slug 生成器（近似 GitHub 算法，支持中文）：
+ * 1. 去掉内联 Markdown 标记（`*__^~#`）
+ * 2. 空格 / 全角空格 → 连字符
+ * 3. 去掉剩余标点，仅保留字母 / 数字 / 中文 / 连字符
+ * 4. 合并多余连字符并去首尾
+ */
+function slugify(s: string): string {
+  return s
+    .trim()
+    .toLowerCase()
+    .replace(/[`*_~^#]/g, '')  // 去掉行内 Markdown 标记字符
+    .replace(/[\s\u3000]+/g, '-')     // 空格 → 连字符
+    .replace(/[^\w\u4e00-\u9fff\-]/g, '') // 保留字母/数字/中文/连字符
+    .replace(/-+/g, '-')               // 合并连字符
+    .replace(/^-|-$/g, '');            // 去首尾连字符
+}
+
+/**
+ * rehype 插件：为标题节点生成 slug 并写入 id 属性。
+ * 重复标题追加 `-1` / `-2` 后缀，行为对齐 GitHub。
+ */
+const rehypeAuroraSlugs = () => (tree: unknown): void => {
+  const seen = new Map<string, number>();
+  const collectText = (node: unknown): string => {
+    const n = node as { type?: string; value?: string; children?: unknown[] };
+    if (n.type === 'text') return n.value ?? '';
+    return (n.children ?? []).map(collectText).join('');
+  };
+  const visit = (node: unknown): void => {
+    const n = node as {
+      type?: string;
+      tagName?: string;
+      properties?: Record<string, unknown>;
+      children?: unknown[];
+    };
+    if (n.type === 'element' && /^(h[1-6])$/.test(n.tagName)) {
+      const text = collectText(n);
+      let slug = slugify(text) || n.tagName;  // 兜底用标签名
+      const count = seen.get(slug) ?? 0;
+      seen.set(slug, count + 1);
+      const id = count === 0 ? slug : `${slug}-${count}`;
+      (n.properties ??= {}).id = id;
+    }
+    n.children?.forEach(visit);
+  };
+  visit(tree);
+};
+
 /** rehype 插件：遍历 hast，重写 img.src */
 const rehypeAuroraImages = () => (tree: unknown): void => {
   const visit = (node: unknown): void => {
@@ -103,6 +152,7 @@ function createProcessor() {
     .use(remarkMath)
     .use(remarkRehype)
     .use(rehypeKatex)
+    .use(rehypeAuroraSlugs)
     .use(rehypeAuroraImages)
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- 该包的 Options 类型在部分版本与 unified 链不兼容，运行时行为正确
     .use(rehypeHighlight, { ignoreMissing: true } as any)
