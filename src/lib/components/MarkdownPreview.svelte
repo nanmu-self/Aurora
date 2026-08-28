@@ -7,7 +7,8 @@
   import { workspace } from '$lib/stores/workspace.svelte';
   import { settings } from '$lib/stores/settings.svelte';
   import { layout } from '$lib/stores/layout.svelte';
-  import { dirname } from '$lib/path';
+  import { status } from '$lib/stores/editorStatus.svelte';
+  import { dirname, join } from '$lib/path';
   import 'katex/dist/katex.min.css';
   import '$lib/styles/prose.css';
 
@@ -138,6 +139,52 @@
 
   /* ---------------- 生命周期 ---------------- */
 
+  /**
+   * 预览区链接点击委托：
+   * - 相对路径 / `/foo` 样式：按当前文件目录 / 工作区根解析为绝对路径，走 tabs.openPath；
+   * - http(s) / mailto / data / javascript / asset：放行浏览器默认（外部链接会跳浏览器，mailto 同理）；
+   * - 纯锚点 `#...`：交给编辑器的 outline / jump 能力（当前静默，未来可接大纲跳转）；
+   * - 不存在或失败：在状态栏提示，绝不导航离开，避免把整个页面带到 404 而无法退出。
+   */
+  function handleClick(e: MouseEvent): void {
+    const target = e.target;
+    if (!(target instanceof HTMLElement)) return;
+    const anchor = target.closest('a');
+    if (!anchor) return;
+
+    const href = anchor.getAttribute('href');
+    if (!href) return;
+    const hrefTrim = href.trim();
+
+    // 1. 放行纯锚点（交给大纲 / 未来跳转）
+    if (hrefTrim.startsWith('#')) return;
+
+    // 2. 放行浏览器应该接管的外部协议
+    if (/^(https?|mailto|data|javascript|tel:|geo:|asset:|blob:|#)/i.test(hrefTrim)) {
+      return;
+    }
+
+    e.preventDefault();
+    const activePath = tabs.active?.path;
+    if (!activePath) return; // 无上下文不处理
+
+    let abs: string;
+    const norm = hrefTrim.replace(/^\./, '');
+    if (norm.startsWith('/')) {
+      // `/foo/bar.md` → 以工作区根为基准
+      abs = workspace.root ? join(workspace.root, norm) : norm;
+    } else {
+      // `other/API_sign.md` → 以当前文档所在目录为基准
+      abs = join(dirname(activePath), norm);
+    }
+    abs = abs.replace(/\/$/, '');
+
+    tabs.openPath(abs).catch((e: unknown) => {
+      const msg = typeof e === 'string' ? e : e instanceof Error ? e.message : String(e);
+      status.show(`打开失败：${abs}（${msg}）`);
+    });
+  }
+
   onMount(() => {
     renderNow();
     const off = onDocChanged(schedule);
@@ -163,7 +210,7 @@
 </script>
 
 <div class="preview-scroll" bind:this={scrollEl} onwheel={onWheel}>
-  <div class="preview-col md-preview" bind:this={container}></div>
+  <div class="preview-col md-preview" bind:this={container} onclick={handleClick}></div>
 </div>
 
 <style>
