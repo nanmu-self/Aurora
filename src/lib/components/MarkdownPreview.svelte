@@ -169,13 +169,12 @@
     if (!activePath) return; // 无上下文不处理
 
     let abs: string;
-    const norm = hrefTrim.replace(/^\./, '');
-    if (norm.startsWith('/')) {
+    if (hrefTrim.startsWith('/')) {
       // `/foo/bar.md` → 以工作区根为基准
-      abs = workspace.root ? join(workspace.root, norm) : norm;
+      abs = workspace.root ? join(workspace.root, hrefTrim) : hrefTrim;
     } else {
-      // `other/API_sign.md` → 以当前文档所在目录为基准
-      abs = join(dirname(activePath), norm);
+      // `other/API_sign.md` / `../foo.md` / `./bar.md` → 以当前文档所在目录为基准
+      abs = join(dirname(activePath), hrefTrim);
     }
     abs = abs.replace(/\/$/, '');
 
