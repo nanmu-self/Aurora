@@ -49,6 +49,24 @@
 </script>
 
 <div class="ai-panel">
+  <!-- 思考中动效：两颗极光渐变四芒星交替闪烁 -->
+  {#snippet sparkleAnim()}
+    <span class="sparkles" aria-hidden="true">
+      <svg class="sparkle" viewBox="0 0 24 24">
+        <defs>
+          <linearGradient id="ai-sparkle-grad" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0" stop-color="#5eead4" />
+            <stop offset="1" stop-color="#818cf8" />
+          </linearGradient>
+        </defs>
+        <path fill="url(#ai-sparkle-grad)" d="M12 2 L14.4 9.6 L22 12 L14.4 14.4 L12 22 L9.6 14.4 L2 12 L9.6 9.6 Z" />
+      </svg>
+      <svg class="sparkle small" viewBox="0 0 24 24">
+        <path fill="url(#ai-sparkle-grad)" d="M12 2 L14.4 9.6 L22 12 L14.4 14.4 L12 22 L9.6 14.4 L2 12 L9.6 9.6 Z" />
+      </svg>
+    </span>
+  {/snippet}
+
   {#if !desktop}
     <p class="hint">AI 功能仅桌面版可用</p>
   {:else if ai.optimize}
@@ -92,7 +110,7 @@
       {#if ai.optimizing || ai.result || ai.resultError}
         <div class="result">
           {#if ai.optimizing && !ai.result}
-            <span class="thinking"><span class="dots" aria-label="正在生成"><i></i><i></i><i></i></span>正在生成…</span>
+            <span class="thinking thinking-row">{@render sparkleAnim()}<span class="thinking-text">正在生成…</span></span>
           {:else if ai.resultError}
             <span class="err">{ai.resultError}</span>
           {:else}
@@ -148,7 +166,7 @@
             {/if}
             {#if ai.streaming && i === ai.messages.length - 1 && m.role === 'assistant' && !m.content}
               <!-- 首 token 未到：思考中动效，避免空白像卡死 -->
-              <p class="content"><span class="dots" aria-label="AI 正在思考"><i></i><i></i><i></i></span></p>
+              <p class="content"><span class="thinking-row" aria-label="AI 正在思考">{@render sparkleAnim()}<span class="thinking-text">思考中</span></span></p>
             {:else if m.role === 'assistant'}
               <div class="md-preview ai-md">
                 {@html renderMarkdownHtml(m.content)}{#if ai.streaming && i === ai.messages.length - 1}<i class="caret"></i>{/if}
@@ -324,47 +342,54 @@
     }
   }
 
-  /* 思考中：跳动圆点（首 token 未到时的等待反馈） */
-  .dots {
+  /* 思考中：极光渐变四芒星交替闪烁 */
+  .thinking-row {
     display: inline-flex;
     align-items: center;
-    gap: 3px;
-    margin-right: 6px;
+    gap: 7px;
   }
 
-  .dots i {
-    width: 5px;
-    height: 5px;
-    border-radius: 50%;
-    background: var(--text-tertiary);
-    animation: dot-bounce 1.2s ease-in-out infinite;
+  .thinking-text {
+    font-size: 11.5px;
+    color: var(--text-tertiary);
   }
 
-  .dots i:nth-child(2) {
-    animation-delay: 0.15s;
+  .sparkles {
+    display: inline-flex;
+    align-items: flex-start;
   }
 
-  .dots i:nth-child(3) {
-    animation-delay: 0.3s;
+  .sparkle {
+    width: 15px;
+    height: 15px;
+    transform-origin: center;
+    transform-box: fill-box;
+    animation: sparkle-twinkle 1.5s ease-in-out infinite;
   }
 
-  @keyframes dot-bounce {
+  .sparkle.small {
+    width: 9px;
+    height: 9px;
+    margin-left: -2px;
+    animation-delay: 0.45s;
+  }
+
+  @keyframes sparkle-twinkle {
     0%,
-    60%,
     100% {
-      transform: translateY(0);
-      opacity: 0.35;
+      transform: scale(0.45) rotate(-10deg);
+      opacity: 0.3;
     }
 
-    30% {
-      transform: translateY(-3px);
+    40% {
+      transform: scale(1.1) rotate(18deg);
       opacity: 1;
     }
   }
 
   @media (prefers-reduced-motion: reduce) {
     .caret,
-    .dots i {
+    .sparkle {
       animation: none;
     }
   }
