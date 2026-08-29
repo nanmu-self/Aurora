@@ -5,6 +5,8 @@
    */
   import { ai, OPTIMIZE_PRESETS } from '$lib/stores/ai.svelte';
   import { settings } from '$lib/stores/settings.svelte';
+  import { renderMarkdownHtml } from '$lib/markdown/inline';
+  import '$lib/styles/prose.css'; // .md-preview 排印 + hljs 代码配色（与预览共用）
   import { inTauri } from '$lib/platform';
 
   let input = $state('');
@@ -94,7 +96,9 @@
           {:else if ai.resultError}
             <span class="err">{ai.resultError}</span>
           {:else}
-            <span class="stream">{ai.result}{#if ai.optimizing}<i class="caret"></i>{/if}</span>
+            <div class="md-preview ai-md">
+              {@html renderMarkdownHtml(ai.result)}{#if ai.optimizing}<i class="caret"></i>{/if}
+            </div>
           {/if}
         </div>
       {/if}
@@ -145,8 +149,12 @@
             {#if ai.streaming && i === ai.messages.length - 1 && m.role === 'assistant' && !m.content}
               <!-- 首 token 未到：思考中动效，避免空白像卡死 -->
               <p class="content"><span class="dots" aria-label="AI 正在思考"><i></i><i></i><i></i></span></p>
+            {:else if m.role === 'assistant'}
+              <div class="md-preview ai-md">
+                {@html renderMarkdownHtml(m.content)}{#if ai.streaming && i === ai.messages.length - 1}<i class="caret"></i>{/if}
+              </div>
             {:else}
-              <p class="content">{m.content}{#if ai.streaming && i === ai.messages.length - 1 && m.role === 'assistant'}<i class="caret"></i>{/if}</p>
+              <p class="content">{m.content}</p>
             {/if}
           </div>
         {/each}
@@ -608,14 +616,42 @@
 
   .result {
     padding: 6px 8px;
-    font-size: 12px;
-    line-height: 1.6;
-    color: var(--text-primary);
-    white-space: pre-wrap;
-    word-break: break-word;
     background: var(--bg-elevated);
     border: 1px solid var(--border-subtle);
     border-radius: var(--radius-sm);
+  }
+
+  /* AI 输出的 Markdown 排印（套预览的 .md-preview 全局规则） */
+  .ai-md {
+    font-size: 12px;
+    line-height: 1.65;
+  }
+
+  .ai-md :global(> :first-child) {
+    margin-top: 0;
+  }
+
+  .ai-md :global(> :last-child) {
+    margin-bottom: 0;
+  }
+
+  .ai-md :global(pre) {
+    overflow-x: auto;
+    max-width: 100%;
+  }
+
+  .ai-md :global(code) {
+    word-break: break-word;
+  }
+
+  .ai-md :global(table) {
+    display: block;
+    overflow-x: auto;
+    max-width: 100%;
+  }
+
+  .ai-md :global(img) {
+    max-width: 100%;
   }
 
   .opt-actions {
