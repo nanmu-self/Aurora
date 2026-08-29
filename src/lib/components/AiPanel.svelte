@@ -139,6 +139,9 @@
         {#each ai.messages as m, i (i)}
           <div class="msg" class:user={m.role === 'user'}>
             <span class="role">{m.role === 'user' ? '我' : 'AI'}</span>
+            {#if m.quote}
+              <p class="msg-quote">{m.quote}</p>
+            {/if}
             <p class="content">{m.content}{#if ai.streaming && i === ai.messages.length - 1 && m.role === 'assistant'}<i class="caret"></i>{/if}</p>
           </div>
         {/each}
@@ -149,6 +152,17 @@
     </div>
 
     <div class="composer">
+      {#if ai.quoted}
+        <div class="quote-box">
+          <div class="q-head">
+            <span class="q-label">引用选中文本</span>
+            <button class="q-remove" title="移除引用" onclick={() => ai.clearQuote()}>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12" /></svg>
+            </button>
+          </div>
+          <p class="q-text">{ai.quoted}</p>
+        </div>
+      {/if}
       <label class="doc-toggle">
         <input type="checkbox" bind:checked={ai.includeDoc} />
         引用当前文档
@@ -311,6 +325,70 @@
     flex-shrink: 0;
     padding: 6px 10px 10px;
     border-top: 1px solid var(--border-subtle);
+  }
+
+  /* ---------- 引用块 ---------- */
+
+  .quote-box {
+    margin-bottom: 6px;
+    padding: 6px 8px;
+    background: var(--bg-elevated);
+    border: 1px solid var(--border-subtle);
+    border-left: 2px solid var(--accent);
+    border-radius: var(--radius-sm);
+  }
+
+  .q-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 2px;
+  }
+
+  .q-label {
+    font-size: 10px;
+    color: var(--accent);
+    letter-spacing: 0.03em;
+  }
+
+  .q-remove {
+    display: grid;
+    place-items: center;
+    width: 16px;
+    height: 16px;
+    color: var(--text-tertiary);
+    border-radius: var(--radius-sm);
+  }
+
+  .q-remove:hover {
+    background: var(--bg-chrome);
+    color: var(--text-primary);
+  }
+
+  .q-remove svg {
+    width: 10px;
+    height: 10px;
+  }
+
+  .q-text,
+  .msg-quote {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 3;
+    line-clamp: 3;
+    overflow: hidden;
+    font-size: 11px;
+    line-height: 1.5;
+    color: var(--text-tertiary);
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+
+  .msg-quote {
+    margin-top: 4px;
+    padding: 4px 6px;
+    background: var(--bg-app);
+    border-radius: var(--radius-sm);
   }
 
   .doc-toggle {

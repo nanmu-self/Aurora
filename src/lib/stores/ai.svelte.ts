@@ -16,6 +16,8 @@ import { status } from './editorStatus.svelte';
 export interface ChatMsg {
   role: 'user' | 'assistant';
   content: string;
+  /** 发送时引用的编辑器选中文本（仅展示用） */
+  quote?: string;
 }
 
 /** 待优化的选区快照 */
@@ -40,6 +42,8 @@ class AiStore {
   error = $state('');
   /** 是否把当前文档全文作为上下文附带 */
   includeDoc = $state(false);
+  /** 从编辑器选区一键引用的文本（发送时拼进上下文，随后清除） */
+  quoted = $state<string | null>(null);
 
   /** 优化模式：非 null 时面板进入选区优化视图 */
   optimize = $state<OptimizeTask | null>(null);
@@ -78,6 +82,21 @@ class AiStore {
     ui.sidebarTab = 'ai';
     layout.sidebarCollapsed = false;
     return true;
+  }
+
+  /** 选区浮动按钮：把选中文本引用进对话框 */
+  quoteSelection(): boolean {
+    const sel = selectionRange();
+    if (!sel) return false;
+    this.quoted = sel.text;
+    this.closeOptimize(); // 优化模式与引用互斥，统一回到对话视图
+    ui.sidebarTab = 'ai';
+    layout.sidebarCollapsed = false;
+    return true;
+  }
+
+  clearQuote(): void {
+    this.quoted = null;
   }
 
   /** 执行优化（instruction 为预设指令或用户自定义指令） */
@@ -186,9 +205,15 @@ class AiStore {
       }
     }
     for (const m of this.messages) msgs.push({ role: m.role, content: m.content });
-    msgs.push({ role: 'user', content: t });
 
-    this.messages.push({ role: 'user', content: t }, { role: 'assistant', content: '' });
+    const quote = this.quoted;
+    const outgoing = quote
+      ? `请结合以下引用的文档片段回答：\n\n【引用片段】\n${quote}\n\n【问题】\n${t}`
+      : t;
+    msgs.push({ role: 'user', content: outgoing });
+
+    this.messages.push({ role: 'user', content: t, quote: quote ?? undefined }, { role: 'assistant', content: '' });
+    this.quoted = null;
     this.streaming = true;
     try {
       const full = await aiChat(this.#config(), msgs, (d) => {
