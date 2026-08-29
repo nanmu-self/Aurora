@@ -9,6 +9,7 @@
   import { layout } from '$lib/stores/layout.svelte';
   import { status } from '$lib/stores/editorStatus.svelte';
   import { dirname, join } from '$lib/path';
+  import { openExternal } from '$lib/commands/fs';
   import 'katex/dist/katex.min.css';
   import '$lib/styles/prose.css';
 
@@ -144,7 +145,7 @@
    * - 同文档 `#id` 锚点：在容器内找对应元素并滚动到视口；
    * - 跨文档 `file.md#section`：解析路径打开文件，再尝试滚动到目标锚点；
    * - 相对路径 / `/foo` 样式：按当前文件目录 / 工作区根解析为绝对路径，走 tabs.openPath；
-   * - http(s) / mailto / data / javascript / asset：放行浏览器默认；
+   * - http(s) / mailto / tel / geo：交给系统默认浏览器 / 应用打开；
    * - 不存在或失败：在状态栏提示，绝不导航离开。
    */
   /** URL 解码片段标识，兼容 remark 对中文 / 特殊字符的 percent-encoding */
@@ -185,8 +186,13 @@
       return;
     }
 
-    // 2. 放行浏览器应该接管的外部协议
-    if (/^(https?|mailto|data|javascript|tel:|geo:|asset:|blob:|#)/i.test(pathPart)) {
+    // 2. 外部协议：阻止 WebView 内导航，交给系统默认浏览器 / 应用打开
+    if (/^(https?|mailto|tel|geo):/i.test(pathPart)) {
+      e.preventDefault();
+      openExternal(hrefTrim).catch((err: unknown) => {
+        const msg = typeof err === 'string' ? err : err instanceof Error ? err.message : String(err);
+        status.show(`无法打开链接：${hrefTrim}（${msg}）`);
+      });
       return;
     }
 

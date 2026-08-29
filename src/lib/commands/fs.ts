@@ -1,6 +1,6 @@
 import { invoke } from '@tauri-apps/api/core';
 import { open, save } from '@tauri-apps/plugin-dialog';
-import { revealItemInDir } from '@tauri-apps/plugin-opener';
+import { openUrl, revealItemInDir } from '@tauri-apps/plugin-opener';
 
 /**
  * 文件系统 / 工作区相关 command 的类型化封装
@@ -125,4 +125,9 @@ export function allowWorkspaceAssets(dir: string): Promise<void> {
 /** 在系统文件管理器中显示该条目 */
 export function revealInOS(path: string): Promise<void> {
   return revealItemInDir(path);
+}
+
+/** 用系统默认浏览器 / 应用打开外部链接（http、https、mailto 等） */
+export function openExternal(url: string): Promise<void> {
+  return openUrl(url);
 }
