@@ -90,7 +90,7 @@
       {#if ai.optimizing || ai.result || ai.resultError}
         <div class="result">
           {#if ai.optimizing && !ai.result}
-            <span class="thinking">生成中…</span>
+            <span class="thinking"><span class="dots" aria-label="正在生成"><i></i><i></i><i></i></span>正在生成…</span>
           {:else if ai.resultError}
             <span class="err">{ai.resultError}</span>
           {:else}
@@ -142,7 +142,12 @@
             {#if m.quote}
               <p class="msg-quote">{m.quote}</p>
             {/if}
-            <p class="content">{m.content}{#if ai.streaming && i === ai.messages.length - 1 && m.role === 'assistant'}<i class="caret"></i>{/if}</p>
+            {#if ai.streaming && i === ai.messages.length - 1 && m.role === 'assistant' && !m.content}
+              <!-- 首 token 未到：思考中动效，避免空白像卡死 -->
+              <p class="content"><span class="dots" aria-label="AI 正在思考"><i></i><i></i><i></i></span></p>
+            {:else}
+              <p class="content">{m.content}{#if ai.streaming && i === ai.messages.length - 1 && m.role === 'assistant'}<i class="caret"></i>{/if}</p>
+            {/if}
           </div>
         {/each}
       {/if}
@@ -305,6 +310,51 @@
   @keyframes blink {
     50% {
       opacity: 0;
+    }
+  }
+
+  /* 思考中：跳动圆点（首 token 未到时的等待反馈） */
+  .dots {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    margin-right: 6px;
+  }
+
+  .dots i {
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: var(--text-tertiary);
+    animation: dot-bounce 1.2s ease-in-out infinite;
+  }
+
+  .dots i:nth-child(2) {
+    animation-delay: 0.15s;
+  }
+
+  .dots i:nth-child(3) {
+    animation-delay: 0.3s;
+  }
+
+  @keyframes dot-bounce {
+    0%,
+    60%,
+    100% {
+      transform: translateY(0);
+      opacity: 0.35;
+    }
+
+    30% {
+      transform: translateY(-3px);
+      opacity: 1;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .caret,
+    .dots i {
+      animation: none;
     }
   }
 
