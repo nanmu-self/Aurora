@@ -274,6 +274,9 @@
     min-height: 0;
     overflow-y: auto;
     padding: 6px 10px;
+    /* 全局 body 是 user-select:none（桌面惯例），AI 回复要可选中复制 */
+    user-select: text;
+    cursor: auto;
   }
 
   .msg {
@@ -554,6 +557,8 @@
     background: var(--bg-app);
     border: 1px solid var(--border-subtle);
     border-radius: var(--radius-sm);
+    user-select: text;
+    cursor: auto;
   }
 
   .chips {
@@ -619,6 +624,8 @@
     background: var(--bg-elevated);
     border: 1px solid var(--border-subtle);
     border-radius: var(--radius-sm);
+    user-select: text;
+    cursor: auto;
   }
 
   /* AI 输出的 Markdown 排印（套预览的 .md-preview 全局规则） */
