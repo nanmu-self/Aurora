@@ -5,6 +5,7 @@
   import { status } from '$lib/stores/editorStatus.svelte';
   import { basename } from '$lib/path';
   import FileTree from './FileTree.svelte';
+  import AiPanel from './AiPanel.svelte';
 
   /** 当前光标所在章节：最后一个起始行 ≤ 光标行的大纲项 */
   const activeIndex = $derived.by(() => {
@@ -19,6 +20,7 @@
   const tabs = [
     { id: 'files', label: '文件' },
     { id: 'outline', label: '大纲' },
+    { id: 'ai', label: 'AI' },
   ] as const;
 </script>
 
@@ -95,7 +97,7 @@
           {/if}
         </div>
       {/if}
-    {:else}
+    {:else if ui.sidebarTab === 'outline'}
       {#if outline.items.length === 0}
         <p class="empty-hint">
           暂无标题
@@ -116,6 +118,8 @@
           {/each}
         </div>
       {/if}
+    {:else}
+      <AiPanel />
     {/if}
   </div>
 </aside>

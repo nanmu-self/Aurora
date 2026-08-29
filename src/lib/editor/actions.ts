@@ -52,6 +52,27 @@ export function selectedText(): string {
   return from === to ? '' : view.state.sliceDoc(from, to);
 }
 
+/** 当前选区的位置与正文（无选区时返回 null）——AI 优化的取材入口。 */
+export function selectionRange(): { from: number; to: number; text: string } | null {
+  const view = getView();
+  if (!view) return null;
+  const { from, to } = view.state.selection.main;
+  if (from === to) return null;
+  return { from, to, text: view.state.sliceDoc(from, to) };
+}
+
+/** 替换指定区间（AI 优化结果回写），光标落在插入文本末尾。 */
+export function replaceRange(from: number, to: number, insert: string): boolean {
+  const view = getView();
+  if (!view) return false;
+  view.dispatch({
+    changes: { from, to, insert },
+    selection: { anchor: from + insert.length },
+  });
+  view.focus();
+  return true;
+}
+
 /** 删除当前选区（剪切的第二步）。 */
 export function deleteSelection(): void {
   const view = getView();

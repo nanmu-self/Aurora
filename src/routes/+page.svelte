@@ -25,6 +25,7 @@
   import { workspace } from '$lib/stores/workspace.svelte';
   import { status } from '$lib/stores/editorStatus.svelte';
   import { settings } from '$lib/stores/settings.svelte';
+  import { ai } from '$lib/stores/ai.svelte';
   import { layout } from '$lib/stores/layout.svelte';
   import { RATIO_MAX, RATIO_MIN, SIDEBAR_MAX, SIDEBAR_MIN } from '$lib/stores/layout.svelte';
   import { dirname } from '$lib/path';
@@ -80,6 +81,9 @@
   let pendingAction: (() => void) | null = null;
   let settingsOpen = $state(false);
   let searchOpen = $state(false);
+
+  // AI 面板未配置时引导打开设置
+  ai.setSettingsOpener(() => (settingsOpen = true));
 
   /** 有未保存修改时先弹确认，确认后执行目标动作 */
   function guard(action: () => void, what: string, tabTitle?: string): void {
