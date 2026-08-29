@@ -1,4 +1,5 @@
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
+mod ai;
 mod fs;
 mod menu;
 mod watch;
@@ -94,6 +95,9 @@ pub fn run() {
             exit_app,
             startup_files,
             menu::sync_view_menu,
+            ai::ai_chat,
+            ai::ai_test,
+            ai::ai_cancel,
             fs::read_text_file,
             fs::write_text_file,
             fs::ensure_dir,
@@ -110,6 +114,7 @@ pub fn run() {
         ])
         .setup(|app| {
             app.manage(OpenedFiles(Mutex::new(collect_arg_files())));
+            app.manage(ai::initial_cancel_flag());
             Ok(())
         })
         .build(tauri::generate_context!())
