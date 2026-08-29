@@ -13,6 +13,7 @@
   import { deleteSelection, runEditorAction, selectedText } from '$lib/editor/actions';
   import { getView, insertAtCursor } from '$lib/editor/bridge';
   import { readClipboardText, writeClipboardText } from '$lib/commands/clipboard';
+  import { ai } from '$lib/stores/ai.svelte';
 
   let menu = $state<{ x: number; y: number; items: MenuItem[] } | null>(null);
 
@@ -42,6 +43,7 @@
         },
       });
       items.push({ label: '拷贝', action: () => copyText(sel) });
+      items.push({ label: 'AI 优化…', action: () => ai.optimizeFromSelection() });
     }
     items.push({ label: '粘贴', action: () => void pasteIntoEditor() });
     items.push({ separator: true, label: '' });

@@ -302,7 +302,8 @@
   function handleMenu(id: string): void {
     // 模态框（设置/全局搜索/确认框）打开时，编辑类动作不应落到背后的编辑器上
     const modalOpen = settingsOpen || searchOpen || confirmOpen;
-    if (modalOpen && (id.startsWith('fmt.') || id.startsWith('edit.'))) return;
+    if (modalOpen && (id.startsWith('fmt.') || id.startsWith('edit.') || id === 'ai.optimize'))
+      return;
 
     switch (id) {
       case 'app.settings':
@@ -367,6 +368,12 @@
         break;
       case 'fmt.link':
         runEditorAction('link');
+        break;
+      case 'ai.optimize':
+        ai.optimizeFromSelection();
+        break;
+      case 'ai.settings':
+        settingsOpen = true;
         break;
       case 'view.theme':
         settings.toggle();
@@ -446,6 +453,11 @@
     if (e.shiftKey && e.key.toLowerCase() === 'f') {
       e.preventDefault();
       searchOpen = true;
+      return;
+    }
+    if (e.shiftKey && e.key.toLowerCase() === 'a') {
+      e.preventDefault();
+      ai.optimizeFromSelection(); // AI 优化选中文本
       return;
     }
 

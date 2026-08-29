@@ -137,6 +137,18 @@ pub fn build(app: &AppHandle) -> tauri::Result<Menu<Wry>> {
     let format_menu =
         Submenu::with_items(app, "格式", true, &[&bold, &italic, &code, &link])?;
 
+    /* ---------------- AI（转发前端处理） ---------------- */
+    let ai_optimize = MenuItem::with_id(
+        app,
+        "ai.optimize",
+        "优化选中文本…",
+        true,
+        Some("Shift+CmdOrCtrl+A"),
+    )?;
+    let ai_settings =
+        MenuItem::with_id(app, "ai.settings", "AI 设置…", true, Some("CmdOrCtrl+,"))?;
+    let ai_menu = Submenu::with_items(app, "AI", true, &[&ai_optimize, &ai_settings])?;
+
     /* ---------------- 视图 ---------------- */
     let sidebar = CheckMenuItem::with_id(
         app,
@@ -218,6 +230,7 @@ pub fn build(app: &AppHandle) -> tauri::Result<Menu<Wry>> {
             &file_menu,
             &edit_menu,
             &format_menu,
+            &ai_menu,
             &view_menu,
             &window_menu,
         ],

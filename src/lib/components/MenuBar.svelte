@@ -115,6 +115,14 @@
       ],
     },
     {
+      id: 'ai',
+      label: 'AI',
+      items: [
+        { id: 'ai.optimize', label: '优化选中文本…', shortcut: '⇧⌘A' },
+        { id: 'ai.settings', label: 'AI 设置…', shortcut: '⌘,' },
+      ],
+    },
+    {
       id: 'view',
       label: '视图',
       items: [
