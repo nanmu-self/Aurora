@@ -7,11 +7,65 @@
   import { settings } from '$lib/stores/settings.svelte';
   import { renderMarkdownHtml } from '$lib/markdown/inline';
   import '$lib/styles/prose.css'; // .md-preview 排印 + hljs 代码配色（与预览共用）
+  import {
+    chatDeleteSession,
+    chatListSessions,
+    type ChatSessionMeta,
+  } from '$lib/commands/chat';
   import { inTauri } from '$lib/platform';
 
   let input = $state('');
   let instruction = $state('');
   let listEl: HTMLElement | undefined = $state();
+
+  /* ---------------- 历史对话 ---------------- */
+
+  let historyOpen = $state(false);
+  let sessions = $state<ChatSessionMeta[]>([]);
+  let loadingHistory = $state(false);
+
+  async function loadSessions(): Promise<void> {
+    loadingHistory = true;
+    try {
+      sessions = await chatListSessions();
+    } catch {
+      /* 非桌面环境或读取失败：显示空列表 */
+    } finally {
+      loadingHistory = false;
+    }
+  }
+
+  function openHistory(): void {
+    historyOpen = true;
+    void loadSessions();
+  }
+
+  async function openSession(id: string): Promise<void> {
+    await ai.loadSession(id);
+    historyOpen = false;
+  }
+
+  async function removeSession(id: string): Promise<void> {
+    try {
+      await chatDeleteSession(id);
+    } catch {
+      return; // 删除失败不移除列表项
+    }
+    sessions = sessions.filter((s) => s.id !== id);
+    if (ai.sessionId === id) ai.newChat();
+  }
+
+  function fmtTime(ms: number): string {
+    const diff = Date.now() - ms;
+    const MIN = 60_000;
+    const HOUR = 3_600_000;
+    const DAY = 86_400_000;
+    if (diff < MIN) return '刚刚';
+    if (diff < HOUR) return `${Math.floor(diff / MIN)} 分钟前`;
+    if (diff < DAY) return `${Math.floor(diff / HOUR)} 小时前`;
+    if (diff < 7 * DAY) return `${Math.floor(diff / DAY)} 天前`;
+    return new Date(ms).toLocaleDateString('zh-CN');
+  }
 
   const desktop = $derived(inTauri());
   const configured = $derived(ai.hasConfig());
@@ -138,12 +192,41 @@
     <!-- ============ 对话模式 ============ -->
     <div class="chat-head">
       <span class="chat-title">AI 助手</span>
-      {#if ai.messages.length > 0}
-        <button class="ghost" onclick={() => ai.clearChat()}>清空</button>
-      {/if}
+      <div class="head-actions">
+        {#if !historyOpen}
+          <button class="ghost" onclick={openHistory}>历史</button>
+          {#if ai.messages.length > 0}
+            <button class="ghost" onclick={() => ai.newChat()}>新对话</button>
+          {/if}
+        {:else}
+          <button class="ghost" onclick={() => (historyOpen = false)}>返回对话</button>
+        {/if}
+      </div>
     </div>
 
-    <div class="list" bind:this={listEl}>
+    {#if historyOpen}
+      <!-- ============ 历史对话列表 ============ -->
+      <div class="list hist-list">
+        {#if loadingHistory}
+          <p class="hint"><span>加载中…</span></p>
+        {:else if sessions.length === 0}
+          <p class="hint">还没有历史对话<span>对话会自动保存，随时可以回来看</span></p>
+        {:else}
+          {#each sessions as s (s.id)}
+            <div class="hist-item">
+              <button class="hist-main" onclick={() => void openSession(s.id)}>
+                <span class="h-title" title={s.title}>{s.title || '未命名对话'}</span>
+                <span class="h-meta">{fmtTime(s.updatedAt)} · {s.messageCount} 条</span>
+              </button>
+              <button class="h-del" title="删除该对话" onclick={() => void removeSession(s.id)}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12" /></svg>
+              </button>
+            </div>
+          {/each}
+        {/if}
+      </div>
+    {:else}
+      <div class="list" bind:this={listEl}>
       {#if ai.messages.length === 0}
         {#if !configured}
           <p class="hint">
@@ -213,6 +296,7 @@
         {/if}
       </div>
     </div>
+    {/if}
   {/if}
 </div>
 
@@ -400,6 +484,82 @@
     color: #e0716a;
     word-break: break-word;
     margin: 6px 0;
+  }
+
+  /* ---------- 历史对话列表 ---------- */
+
+  .head-actions {
+    display: flex;
+    gap: 4px;
+  }
+
+  .hist-list {
+    padding: 4px 6px;
+  }
+
+  .hist-item {
+    display: flex;
+    align-items: center;
+    margin-bottom: 2px;
+    border-radius: var(--radius-sm);
+    transition: background var(--dur-fast) var(--ease-out);
+  }
+
+  .hist-item:hover {
+    background: var(--bg-elevated);
+  }
+
+  .hist-main {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1px;
+    padding: 6px 8px;
+    text-align: left;
+  }
+
+  .h-title {
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 12px;
+    color: var(--text-secondary);
+  }
+
+  .h-meta {
+    font-size: 10px;
+    color: var(--text-tertiary);
+  }
+
+  .h-del {
+    flex-shrink: 0;
+    display: grid;
+    place-items: center;
+    width: 20px;
+    height: 20px;
+    margin-right: 4px;
+    color: var(--text-tertiary);
+    opacity: 0;
+    border-radius: var(--radius-sm);
+    transition:
+      opacity var(--dur-fast) var(--ease-out),
+      color var(--dur-fast) var(--ease-out);
+  }
+
+  .hist-item:hover .h-del {
+    opacity: 1;
+  }
+
+  .h-del:hover {
+    color: #e0716a;
+  }
+
+  .h-del svg {
+    width: 11px;
+    height: 11px;
   }
 
   .thinking {

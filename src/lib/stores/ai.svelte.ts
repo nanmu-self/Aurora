@@ -6,6 +6,11 @@
  *   已变化时降级为插入光标处，防止 AI 请求期间文档被编辑导致错位覆盖。
  */
 import { aiChat, aiCancel, AI_CANCELLED, type AiChatMessage } from '$lib/commands/ai';
+import {
+  chatAppendMessage,
+  chatCreateSession,
+  chatGetMessages,
+} from '$lib/commands/chat';
 import { selectionRange, replaceRange } from '$lib/editor/actions';
 import { getActiveText, getView, insertAtCursor } from '$lib/editor/bridge';
 import { settings } from './settings.svelte';
@@ -44,6 +49,8 @@ class AiStore {
   includeDoc = $state(false);
   /** 从编辑器选区一键引用的文本（发送时拼进上下文，随后清除） */
   quoted = $state<string | null>(null);
+  /** 当前对话的持久化会话 id（首次发送时创建，历史对话加载后指向该会话） */
+  sessionId = $state<string | null>(null);
 
   /** 优化模式：非 null 时面板进入选区优化视图 */
   optimize = $state<OptimizeTask | null>(null);
@@ -194,6 +201,15 @@ class AiStore {
       return;
     }
     this.error = '';
+    // 首条消息时创建持久化会话（浏览器调试环境失败则静默跳过）
+    if (!this.sessionId) {
+      try {
+        const s = await chatCreateSession(t.slice(0, 30));
+        this.sessionId = s.id;
+      } catch {
+        /* 持久化不可用 */
+      }
+    }
     const msgs: AiChatMessage[] = [];
     if (this.includeDoc) {
       const doc = getActiveText();
@@ -214,6 +230,9 @@ class AiStore {
 
     this.messages.push({ role: 'user', content: t, quote: quote ?? undefined }, { role: 'assistant', content: '' });
     this.quoted = null;
+    if (this.sessionId) {
+      void chatAppendMessage(this.sessionId, 'user', t, quote).catch(() => {});
+    }
     this.streaming = true;
     try {
       const full = await aiChat(this.#config(), msgs, (d) => {
@@ -227,16 +246,42 @@ class AiStore {
         this.error = typeof e === 'string' ? e : String(e);
       }
     } finally {
+      // AI 回复（含被停止时的部分内容）落库；空回复不存
+      if (this.sessionId) {
+        const last = this.messages[this.messages.length - 1];
+        if (last && last.content) {
+          void chatAppendMessage(this.sessionId, 'assistant', last.content).catch(() => {});
+        }
+      }
       this.streaming = false;
     }
   }
 
-  /** 清空对话 */
-  clearChat(): void {
+  /** 开启新对话（旧对话已持久化，可从历史找回） */
+  newChat(): void {
     if (this.streaming) this.stop();
     this.messages = [];
+    this.sessionId = null;
     this.error = '';
   }
+
+  /** 从历史加载一个会话（后续消息追加到该会话） */
+  async loadSession(id: string): Promise<void> {
+    if (this.streaming) this.stop();
+    try {
+      const rows = await chatGetMessages(id);
+      this.messages = rows.map((r) => ({
+        role: r.role,
+        content: r.content,
+        quote: r.quote ?? undefined,
+      }));
+      this.sessionId = id;
+      this.error = '';
+    } catch (e) {
+      this.error = typeof e === 'string' ? e : String(e);
+    }
+  }
+
 }
 
 export const ai = new AiStore();
