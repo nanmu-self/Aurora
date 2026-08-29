@@ -3,6 +3,7 @@
   import { getVersion } from '@tauri-apps/api/app';
   import { settings, type ThemeMode } from '$lib/stores/settings.svelte';
   import { inTauri } from '$lib/platform';
+  import { aiTest } from '$lib/commands/ai';
 
   interface Props {
     open: boolean;
@@ -14,6 +15,10 @@
   $effect(() => {
     if (open) {
       liveFontSize = settings.editorFontSize;
+      aiBaseUrl = settings.aiBaseUrl;
+      aiApiKey = settings.aiApiKey;
+      aiModel = settings.aiModel;
+      testResult = null;
     }
   });
 
@@ -21,6 +26,36 @@
   /** 拖动中的字号：即时显示，节流写入 store */
   let liveFontSize = $state<number | null>(null);
   let rafId = 0;
+
+  /* ---------------- AI 服务配置 ---------------- */
+
+  let aiBaseUrl = $state('');
+  let aiApiKey = $state('');
+  let aiModel = $state('');
+  let showKey = $state(false);
+  let testing = $state(false);
+  let testResult = $state<{ ok: boolean; text: string } | null>(null);
+
+  function saveAi(): void {
+    settings.update({ aiBaseUrl, aiApiKey, aiModel });
+  }
+
+  async function testAi(): Promise<void> {
+    if (!aiBaseUrl.trim() || !aiModel.trim()) {
+      testResult = { ok: false, text: '请先填写 Base URL 和模型名' };
+      return;
+    }
+    testing = true;
+    testResult = null;
+    try {
+      await aiTest({ baseUrl: aiBaseUrl.trim(), apiKey: aiApiKey.trim(), model: aiModel.trim() });
+      testResult = { ok: true, text: '连接成功' };
+    } catch (e) {
+      testResult = { ok: false, text: typeof e === 'string' ? e : String(e) };
+    } finally {
+      testing = false;
+    }
+  }
 
   onMount(() => {
     if (inTauri()) {
@@ -151,6 +186,53 @@
         {/if}
       </section>
 
+      <!-- AI 服务 -->
+      <section>
+        <p class="label">AI 服务</p>
+        <p class="desc">兼容 OpenAI 协议（OpenAI / DeepSeek / 智谱 / Ollama 等）</p>
+        <div class="field">
+          <input
+            class="text"
+            type="text"
+            placeholder="https://api.openai.com/v1"
+            bind:value={aiBaseUrl}
+            onchange={saveAi}
+            aria-label="AI 服务地址"
+          />
+        </div>
+        <div class="field key-row">
+          <input
+            class="text"
+            type={showKey ? 'text' : 'password'}
+            placeholder="API Key（本地服务可留空）"
+            bind:value={aiApiKey}
+            onchange={saveAi}
+            aria-label="AI API Key"
+          />
+          <button class="eye" title={showKey ? '隐藏' : '显示'} onclick={() => (showKey = !showKey)}>
+            {showKey ? '隐藏' : '显示'}
+          </button>
+        </div>
+        <div class="field">
+          <input
+            class="text"
+            type="text"
+            placeholder="模型名，如 gpt-4o-mini / deepseek-chat"
+            bind:value={aiModel}
+            onchange={saveAi}
+            aria-label="AI 模型名"
+          />
+        </div>
+        <div class="row">
+          <button class="test-btn" disabled={testing} onclick={() => void testAi()}>
+            {testing ? '测试中…' : '测试连接'}
+          </button>
+          {#if testResult}
+            <span class="test-result" class:ok={testResult.ok}>{testResult.text}</span>
+          {/if}
+        </div>
+      </section>
+
       <footer class="about">Aurora{appVersion ? ` v${appVersion}` : ''} · 本地优先的 Markdown 编辑器</footer>
     </div>
   </div>
@@ -252,6 +334,89 @@
     width: 16px;
     height: 16px;
     accent-color: var(--accent);
+  }
+
+  /* ---------- AI 服务 ---------- */
+
+  .field {
+    margin-bottom: 8px;
+  }
+
+  .key-row {
+    display: flex;
+    gap: 6px;
+  }
+
+  .text {
+    width: 100%;
+    padding: 6px 9px;
+    font-size: 12px;
+    background: var(--bg-app);
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius-sm);
+    color: var(--text-primary);
+    transition: border-color var(--dur-fast) var(--ease-out);
+  }
+
+  .text::placeholder {
+    color: var(--text-tertiary);
+    opacity: 0.7;
+  }
+
+  .text:focus {
+    outline: none;
+    border-color: var(--accent);
+  }
+
+  .eye {
+    flex-shrink: 0;
+    padding: 0 10px;
+    font-size: 11px;
+    color: var(--text-tertiary);
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius-sm);
+    transition:
+      background var(--dur-fast) var(--ease-out),
+      color var(--dur-fast) var(--ease-out);
+  }
+
+  .eye:hover {
+    background: var(--bg-chrome);
+    color: var(--text-primary);
+  }
+
+  .test-btn {
+    padding: 5px 14px;
+    font-size: 11.5px;
+    font-weight: 500;
+    color: var(--text-secondary);
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius-sm);
+    transition:
+      background var(--dur-fast) var(--ease-out),
+      color var(--dur-fast) var(--ease-out);
+  }
+
+  .test-btn:hover:not(:disabled) {
+    background: var(--bg-chrome);
+    color: var(--text-primary);
+  }
+
+  .test-btn:disabled {
+    opacity: 0.5;
+    cursor: default;
+  }
+
+  .test-result {
+    font-size: 11px;
+    color: var(--text-tertiary);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .test-result.ok {
+    color: #3fb27f;
   }
 
   input[type='range'] {

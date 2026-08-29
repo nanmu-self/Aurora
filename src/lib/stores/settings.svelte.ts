@@ -21,6 +21,12 @@ export interface ExtraSettings {
   editorFontSize: number;
   /** 双栏滚动同步开关 */
   scrollSync: boolean;
+  /** AI 服务地址（OpenAI 兼容，含 /v1） */
+  aiBaseUrl: string;
+  /** AI API Key */
+  aiApiKey: string;
+  /** AI 模型名 */
+  aiModel: string;
 }
 
 const EXTRA_DEFAULTS: ExtraSettings = {
@@ -28,6 +34,9 @@ const EXTRA_DEFAULTS: ExtraSettings = {
   autosaveDelayMs: 1500,
   editorFontSize: 14,
   scrollSync: true,
+  aiBaseUrl: '',
+  aiApiKey: '',
+  aiModel: '',
 };
 
 function loadSavedMode(): ThemeMode {
@@ -61,6 +70,9 @@ class SettingsStore {
   autosaveDelayMs = $state<number>(loadExtras().autosaveDelayMs);
   editorFontSize = $state<number>(loadExtras().editorFontSize);
   scrollSync = $state<boolean>(loadExtras().scrollSync);
+  aiBaseUrl = $state<string>(loadExtras().aiBaseUrl);
+  aiApiKey = $state<string>(loadExtras().aiApiKey);
+  aiModel = $state<string>(loadExtras().aiModel);
 
   /** 系统当前是否深色（监听实时变化） */
   #systemDark = $state(
@@ -103,6 +115,9 @@ class SettingsStore {
     if (patch.autosaveDelayMs !== undefined) this.autosaveDelayMs = patch.autosaveDelayMs;
     if (patch.editorFontSize !== undefined) this.editorFontSize = patch.editorFontSize;
     if (patch.scrollSync !== undefined) this.scrollSync = patch.scrollSync;
+    if (patch.aiBaseUrl !== undefined) this.aiBaseUrl = patch.aiBaseUrl;
+    if (patch.aiApiKey !== undefined) this.aiApiKey = patch.aiApiKey;
+    if (patch.aiModel !== undefined) this.aiModel = patch.aiModel;
     try {
       localStorage.setItem(
         SETTINGS_KEY,
@@ -111,6 +126,9 @@ class SettingsStore {
           autosaveDelayMs: this.autosaveDelayMs,
           editorFontSize: this.editorFontSize,
           scrollSync: this.scrollSync,
+          aiBaseUrl: this.aiBaseUrl,
+          aiApiKey: this.aiApiKey,
+          aiModel: this.aiModel,
         }),
       );
     } catch {
