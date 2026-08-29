@@ -1,5 +1,6 @@
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 mod ai;
+mod chatdb;
 mod fs;
 mod menu;
 mod watch;
@@ -98,6 +99,11 @@ pub fn run() {
             ai::ai_chat,
             ai::ai_test,
             ai::ai_cancel,
+            chatdb::chat_create_session,
+            chatdb::chat_append_message,
+            chatdb::chat_list_sessions,
+            chatdb::chat_get_messages,
+            chatdb::chat_delete_session,
             fs::read_text_file,
             fs::write_text_file,
             fs::ensure_dir,
@@ -115,6 +121,12 @@ pub fn run() {
         .setup(|app| {
             app.manage(OpenedFiles(Mutex::new(collect_arg_files())));
             app.manage(ai::initial_cancel_flag());
+            // 聊天记录库：应用数据目录下 chat.db（目录不存在则创建）
+            let data_dir = app.path().app_data_dir()?;
+            std::fs::create_dir_all(&data_dir)?;
+            let conn = rusqlite::Connection::open(data_dir.join("chat.db"))?;
+            chatdb::init_db(&conn)?;
+            app.manage(chatdb::ChatDb::new(conn));
             Ok(())
         })
         .build(tauri::generate_context!())
