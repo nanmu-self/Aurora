@@ -113,7 +113,7 @@ const rehypeAuroraSlugs = () => (tree: unknown): void => {
       properties?: Record<string, unknown>;
       children?: unknown[];
     };
-    if (n.type === 'element' && /^(h[1-6])$/.test(n.tagName)) {
+    if (n.type === 'element' && typeof n.tagName === 'string' && /^(h[1-6])$/.test(n.tagName)) {
       const text = collectText(n);
       let slug = slugify(text) || n.tagName;  // 兜底用标签名
       const count = seen.get(slug) ?? 0;
